@@ -1,0 +1,48 @@
+# Corely.DataAccess
+
+High-level abstractions for data access that keep the domain/persistence boundary clean. The library provides:
+
+- Provider-agnostic Entity Framework configuration abstraction (IEFConfiguration)
+- Database provider base configurations (InMemory, MySql, Postgres)
+- Entity configuration helpers (EntityConfigurationBase + extension methods for common columns)
+- Generic repositories (readonly + full CRUD)
+- Lightweight unit of work (transaction) abstraction
+- Demo project showing registration and usage
+
+## Quick Start
+```bash
+dotnet add package Corely.DataAccess
+```
+
+```csharp
+// Registration (simplified)
+services.AddSingleton<IEFConfiguration>(new InMemoryConfiguration());
+services.AddScoped<MyDbContext>();
+services.AddScoped(typeof(IReadonlyRepo<>), typeof(EFReadonlyRepo<>));
+services.AddScoped(typeof(IRepo<>), typeof(EFRepo<>));
+services.AddScoped<IUnitOfWorkProvider, EFUoWProvider>();
+```
+
+## Key Concepts
+| Topic | Summary |
+|-------|---------|
+| IEFConfiguration | Abstraction to configure EF Core provider + expose unified db type metadata. |
+| Provider Bases | EFInMemoryConfigurationBase, EFMySqlConfigurationBase, EFPostgresConfigurationBase inherit IEFConfiguration. |
+| Entity Configuration | EntityConfigurationBase classes centralize common auditing + id setup. |
+| Repositories | EFReadonlyRepo / EFRepo provide generic query + CRUD patterns with extension points. |
+| Unit of Work | EFUoWProvider coordinates optional transactions. |
+
+## Documentation
+- [Configurations](configurations.md)
+- [Entity Configuration & Property Helpers](entity-configuration.md)
+- [Repositories](repositories.md)
+- [Unit of Work](unit-of-work.md)
+
+## Demo
+See Corely.DataAccess.Demo and Corely.DataAccess.DemoApp for:
+- Switching providers (uncomment MySql/Postgres)
+- Automatic entity configuration discovery
+- Open generic repo registration (or custom wrappers)
+
+## Philosophy
+Keep domain model free of persistence concerns while still leveraging EF Core efficiently. Favor composition and small interfaces; provide defaults but allow overrides via subclassing or replacing services.

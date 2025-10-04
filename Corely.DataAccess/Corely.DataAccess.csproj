@@ -11,8 +11,8 @@
     <RepositoryUrl>https://github.com/ultrabstrong/Corely/tree/master/Corely.DataAccess</RepositoryUrl>
     <PackageProjectUrl>https://github.com/ultrabstrong/Corely</PackageProjectUrl>
     <PackageLicenseFile>LICENSE</PackageLicenseFile>
-    <Version>1.0.3</Version>
-    <PackageReadmeFile>readme.md</PackageReadmeFile>
+    <Version>1.0.4</Version>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
@@ -27,7 +27,7 @@
     <InternalsVisibleTo Include="DynamicProxyGenAssembly2" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="..\..\Corely.Common\readme.md">
+    <None Include="..\README.md">
       <Pack>True</Pack>
       <PackagePath>\</PackagePath>
     </None>
