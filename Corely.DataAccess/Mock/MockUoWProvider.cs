@@ -1,20 +1,21 @@
 ﻿using Corely.DataAccess.Interfaces.UnitOfWork;
+using System.Threading; // added
 
 namespace Corely.DataAccess.Mock;
 
 public class MockUoWProvider : IUnitOfWorkProvider
 {
-    public Task BeginAsync()
+    public Task BeginAsync(CancellationToken cancellationToken = default)
     {
         return Task.CompletedTask;
     }
 
-    public Task CommitAsync()
+    public Task CommitAsync(CancellationToken cancellationToken = default)
     {
         return Task.CompletedTask;
     }
 
-    public Task RollbackAsync()
+    public Task RollbackAsync(CancellationToken cancellationToken = default)
     {
         return Task.CompletedTask;
     }

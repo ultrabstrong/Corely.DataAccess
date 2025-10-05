@@ -1,4 +1,5 @@
 ﻿using System.Linq.Expressions;
+using System.Threading; // added
 
 namespace Corely.DataAccess.Interfaces.Repos;
 
@@ -8,12 +9,14 @@ public interface IReadonlyRepo<TEntity>
     Task<TEntity?> GetAsync(
         Expression<Func<TEntity, bool>> query,
         Func<IQueryable<TEntity>, IOrderedQueryable<TEntity>>? orderBy = null,
-        Func<IQueryable<TEntity>, IQueryable<TEntity>>? include = null);
+        Func<IQueryable<TEntity>, IQueryable<TEntity>>? include = null,
+        CancellationToken cancellationToken = default);
 
-    Task<bool> AnyAsync(Expression<Func<TEntity, bool>> query);
+    Task<bool> AnyAsync(Expression<Func<TEntity, bool>> query, CancellationToken cancellationToken = default);
 
     Task<List<TEntity>> ListAsync(
         Expression<Func<TEntity, bool>>? query = null,
         Func<IQueryable<TEntity>, IOrderedQueryable<TEntity>>? orderBy = null,
-        Func<IQueryable<TEntity>, IQueryable<TEntity>>? include = null);
+        Func<IQueryable<TEntity>, IQueryable<TEntity>>? include = null,
+        CancellationToken cancellationToken = default);
 }

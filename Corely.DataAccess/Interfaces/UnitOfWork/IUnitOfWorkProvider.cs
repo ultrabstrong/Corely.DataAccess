@@ -1,8 +1,10 @@
-﻿namespace Corely.DataAccess.Interfaces.UnitOfWork;
+﻿using System.Threading;
+
+namespace Corely.DataAccess.Interfaces.UnitOfWork;
 
 public interface IUnitOfWorkProvider
 {
-    Task BeginAsync();
-    Task CommitAsync();
-    Task RollbackAsync();
+    Task BeginAsync(CancellationToken cancellationToken = default);
+    Task CommitAsync(CancellationToken cancellationToken = default);
+    Task RollbackAsync(CancellationToken cancellationToken = default);
 }

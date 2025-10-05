@@ -2,6 +2,7 @@
 using Corely.DataAccess.Interfaces.UnitOfWork;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage;
+using System.Threading;
 
 namespace Corely.DataAccess.EntityFramework;
 
@@ -18,29 +19,29 @@ public class EFUoWProvider : DisposeBase, IUnitOfWorkProvider
             != "Microsoft.EntityFrameworkCore.InMemory";
     }
 
-    public async Task BeginAsync()
+    public async Task BeginAsync(CancellationToken cancellationToken = default)
     {
         if (_transaction == null && _supportTransactions)
         {
-            _transaction = await _dbContext.Database.BeginTransactionAsync();
+            _transaction = await _dbContext.Database.BeginTransactionAsync(cancellationToken);
         }
     }
 
-    public async Task CommitAsync()
+    public async Task CommitAsync(CancellationToken cancellationToken = default)
     {
         if (_transaction != null)
         {
-            await _transaction.CommitAsync();
+            await _transaction.CommitAsync(cancellationToken);
             await _transaction.DisposeAsync();
             _transaction = null;
         }
     }
 
-    public async Task RollbackAsync()
+    public async Task RollbackAsync(CancellationToken cancellationToken = default)
     {
         if (_transaction != null)
         {
-            await _transaction.RollbackAsync();
+            await _transaction.RollbackAsync(cancellationToken);
             await _transaction.DisposeAsync();
             _transaction = null;
         }

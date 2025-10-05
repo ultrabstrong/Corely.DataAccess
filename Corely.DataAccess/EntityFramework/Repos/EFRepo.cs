@@ -21,10 +21,10 @@ public class EFRepo<TEntity>
         Logger.LogDebug("{RepoType} created for {EntityType}", GetType().Name.Split('`')[0], typeof(TEntity).Name);
     }
 
-    public virtual async Task<TEntity> CreateAsync(TEntity entity)
+    public virtual async Task<TEntity> CreateAsync(TEntity entity, CancellationToken cancellationToken = default)
     {
-        var newEntity = await DbSet.AddAsync(entity);
-        await DbContext.SaveChangesAsync();
+        var newEntity = await DbSet.AddAsync(entity, cancellationToken);
+        await DbContext.SaveChangesAsync(cancellationToken);
         return newEntity.Entity;
     }
 
@@ -34,7 +34,13 @@ public class EFRepo<TEntity>
         await DbContext.SaveChangesAsync();
     }
 
-    public virtual async Task UpdateAsync(TEntity entity, Func<TEntity, bool> query)
+    public virtual async Task CreateAsync(IEnumerable<TEntity> entities, CancellationToken cancellationToken = default)
+    {
+        await DbSet.AddRangeAsync(entities, cancellationToken);
+        await DbContext.SaveChangesAsync(cancellationToken);
+    }
+
+    public virtual async Task UpdateAsync(TEntity entity, Func<TEntity, bool> query, CancellationToken cancellationToken = default)
     {
         if (typeof(IHasModifiedUtc).IsAssignableFrom(typeof(TEntity)))
         {
@@ -52,12 +58,12 @@ public class EFRepo<TEntity>
             // update existing tracked entity instance with new entity values
             DbSet.Entry(existingEntity).CurrentValues.SetValues(entity);
         }
-        await DbContext.SaveChangesAsync();
+        await DbContext.SaveChangesAsync(cancellationToken);
     }
 
-    public virtual async Task DeleteAsync(TEntity entity)
+    public virtual async Task DeleteAsync(TEntity entity, CancellationToken cancellationToken = default)
     {
         DbSet.Remove(entity);
-        await DbContext.SaveChangesAsync();
+        await DbContext.SaveChangesAsync(cancellationToken);
     }
 }

@@ -3,6 +3,7 @@ using Corely.DataAccess.Interfaces.Repos;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using System.Linq.Expressions;
+using System.Threading;
 
 namespace Corely.DataAccess.EntityFramework.Repos;
 
@@ -25,7 +26,8 @@ public class EFReadonlyRepo<TEntity>
     public virtual async Task<TEntity?> GetAsync(
        Expression<Func<TEntity, bool>> query,
        Func<IQueryable<TEntity>, IOrderedQueryable<TEntity>>? orderBy = null,
-       Func<IQueryable<TEntity>, IQueryable<TEntity>>? include = null)
+       Func<IQueryable<TEntity>, IQueryable<TEntity>>? include = null,
+       CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(query);
         var queryable = DbSet.AsQueryable();
@@ -40,19 +42,20 @@ public class EFReadonlyRepo<TEntity>
             queryable = orderBy(queryable);
         }
 
-        return await queryable.FirstOrDefaultAsync(query);
+        return await queryable.FirstOrDefaultAsync(query, cancellationToken);
     }
 
-    public virtual async Task<bool> AnyAsync(Expression<Func<TEntity, bool>> query)
+    public virtual async Task<bool> AnyAsync(Expression<Func<TEntity, bool>> query, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(query);
-        return await DbSet.AnyAsync(query);
+        return await DbSet.AnyAsync(query, cancellationToken);
     }
 
     public virtual async Task<List<TEntity>> ListAsync(
         Expression<Func<TEntity, bool>>? query = null,
         Func<IQueryable<TEntity>, IOrderedQueryable<TEntity>>? orderBy = null,
-        Func<IQueryable<TEntity>, IQueryable<TEntity>>? include = null)
+        Func<IQueryable<TEntity>, IQueryable<TEntity>>? include = null,
+        CancellationToken cancellationToken = default)
     {
         var queryable = DbSet.AsQueryable();
 
@@ -71,6 +74,6 @@ public class EFReadonlyRepo<TEntity>
             queryable = queryable.Where(query);
         }
 
-        return await queryable.ToListAsync();
+        return await queryable.ToListAsync(cancellationToken);
     }
 }

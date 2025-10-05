@@ -1,6 +1,7 @@
 ﻿using Corely.DataAccess.Interfaces.Entities;
 using Corely.DataAccess.Interfaces.Repos;
 using System.Linq.Expressions;
+using System.Threading; // added
 
 namespace Corely.DataAccess.Mock.Repos;
 
@@ -12,7 +13,7 @@ public class MockRepo<TEntity>
 
     public MockRepo() : base() { }
 
-    public virtual Task<TEntity> CreateAsync(TEntity entity)
+    public virtual Task<TEntity> CreateAsync(TEntity entity, CancellationToken cancellationToken = default)
     {
         Entities.Add(entity);
         return Task.FromResult(entity);
@@ -24,10 +25,17 @@ public class MockRepo<TEntity>
         return Task.CompletedTask;
     }
 
+    public virtual Task CreateAsync(IEnumerable<TEntity> entities, CancellationToken cancellationToken = default)
+    {
+        Entities.AddRange(entities);
+        return Task.CompletedTask;
+    }
+
     public virtual async Task<TEntity?> GetAsync(
         Expression<Func<TEntity, bool>> query,
         Func<IQueryable<TEntity>, IOrderedQueryable<TEntity>>? orderBy = null,
-        Func<IQueryable<TEntity>, IQueryable<TEntity>>? include = null)
+        Func<IQueryable<TEntity>, IQueryable<TEntity>>? include = null,
+        CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(query);
         var predicate = query.Compile();
@@ -46,7 +54,7 @@ public class MockRepo<TEntity>
         return await Task.FromResult(queryable.FirstOrDefault(predicate));
     }
 
-    public virtual Task<bool> AnyAsync(Expression<Func<TEntity, bool>> query)
+    public virtual Task<bool> AnyAsync(Expression<Func<TEntity, bool>> query, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(query);
         var predicate = query.Compile();
@@ -56,7 +64,8 @@ public class MockRepo<TEntity>
     public virtual Task<List<TEntity>> ListAsync(
         Expression<Func<TEntity, bool>>? query = null,
         Func<IQueryable<TEntity>, IOrderedQueryable<TEntity>>? orderBy = null,
-        Func<IQueryable<TEntity>, IQueryable<TEntity>>? include = null)
+        Func<IQueryable<TEntity>, IQueryable<TEntity>>? include = null,
+        CancellationToken cancellationToken = default)
     {
         var queryable = Entities.AsQueryable();
         if (query != null)
@@ -75,7 +84,7 @@ public class MockRepo<TEntity>
         return Task.FromResult(queryable.ToList());
     }
 
-    public virtual Task UpdateAsync(TEntity entity, Func<TEntity, bool> query)
+    public virtual Task UpdateAsync(TEntity entity, Func<TEntity, bool> query, CancellationToken cancellationToken = default)
     {
         if (typeof(IHasModifiedUtc).IsAssignableFrom(typeof(TEntity)))
         {
@@ -87,7 +96,7 @@ public class MockRepo<TEntity>
         return Task.CompletedTask;
     }
 
-    public virtual Task DeleteAsync(TEntity entity)
+    public virtual Task DeleteAsync(TEntity entity, CancellationToken cancellationToken = default)
     {
         Entities.Remove(entity);
         return Task.CompletedTask;

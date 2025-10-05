@@ -1,5 +1,6 @@
 ﻿using Corely.DataAccess.Interfaces.Repos;
 using System.Linq.Expressions;
+using System.Threading; // added
 
 namespace Corely.DataAccess.Mock.Repos;
 
@@ -18,12 +19,14 @@ public class MockReadonlyRepo<TEntity>
     public virtual async Task<TEntity?> GetAsync(
         Expression<Func<TEntity, bool>> query,
         Func<IQueryable<TEntity>, IOrderedQueryable<TEntity>>? orderBy = null,
-        Func<IQueryable<TEntity>, IQueryable<TEntity>>? include = null) => await _mockRepo.GetAsync(query, orderBy, include);
+        Func<IQueryable<TEntity>, IQueryable<TEntity>>? include = null,
+        CancellationToken cancellationToken = default) => await _mockRepo.GetAsync(query, orderBy, include, cancellationToken);
 
-    public virtual async Task<bool> AnyAsync(Expression<Func<TEntity, bool>> query) => await _mockRepo.AnyAsync(query);
+    public virtual async Task<bool> AnyAsync(Expression<Func<TEntity, bool>> query, CancellationToken cancellationToken = default) => await _mockRepo.AnyAsync(query, cancellationToken);
 
     public virtual async Task<List<TEntity>> ListAsync(
         Expression<Func<TEntity, bool>>? query = null,
         Func<IQueryable<TEntity>, IOrderedQueryable<TEntity>>? orderBy = null,
-        Func<IQueryable<TEntity>, IQueryable<TEntity>>? include = null) => await _mockRepo.ListAsync(query, orderBy, include);
+        Func<IQueryable<TEntity>, IQueryable<TEntity>>? include = null,
+        CancellationToken cancellationToken = default) => await _mockRepo.ListAsync(query, orderBy, include, cancellationToken);
 }

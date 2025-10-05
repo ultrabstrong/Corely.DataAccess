@@ -4,11 +4,13 @@ public interface IRepo<TEntity>
     : IReadonlyRepo<TEntity>
     where TEntity : class
 {
-    Task<TEntity> CreateAsync(TEntity entity);
+    Task<TEntity> CreateAsync(TEntity entity, CancellationToken cancellationToken = default);
 
     Task CreateAsync(params TEntity[] entities);
 
-    Task UpdateAsync(TEntity entity, Func<TEntity, bool> query);
+    Task CreateAsync(IEnumerable<TEntity> entities, CancellationToken cancellationToken = default);
 
-    Task DeleteAsync(TEntity entity);
+    Task UpdateAsync(TEntity entity, Func<TEntity, bool> query, CancellationToken cancellationToken = default);
+
+    Task DeleteAsync(TEntity entity, CancellationToken cancellationToken = default);
 }
