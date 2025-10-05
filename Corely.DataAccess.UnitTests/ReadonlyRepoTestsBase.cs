@@ -116,6 +116,22 @@ public abstract class ReadonlyRepoTestsBase
     }
 
     [Fact]
+    public async Task CountAsync_ReturnsTotal_WhenQueryIsNull()
+    {
+        FillRepoAndReturnId();
+        var total = await ReadonlyRepo.CountAsync();
+        Assert.True(total > 0);
+    }
+
+    [Fact]
+    public async Task CountAsync_ReturnsFilteredCount_WhenQueryProvided()
+    {
+        var id = FillRepoAndReturnId();
+        var count = await ReadonlyRepo.CountAsync(e => e.Id == id);
+        Assert.Equal(1, count);
+    }
+
+    [Fact]
     public async Task ListAsync_ReturnsAllEntities_WhenQueryIsNull()
     {
         FillRepoAndReturnId();

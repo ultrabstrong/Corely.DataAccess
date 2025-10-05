@@ -60,6 +60,18 @@ public class MockRepo<TEntity>
         return Task.FromResult(Entities.Any(predicate));
     }
 
+    public virtual Task<int> CountAsync(
+        Expression<Func<TEntity, bool>>? query = null,
+        CancellationToken cancellationToken = default)
+    {
+        if (query == null)
+        {
+            return Task.FromResult(Entities.Count);
+        }
+        var predicate = query.Compile();
+        return Task.FromResult(Entities.Count(predicate));
+    }
+
     public virtual Task<List<TEntity>> ListAsync(
         Expression<Func<TEntity, bool>>? query = null,
         Func<IQueryable<TEntity>, IOrderedQueryable<TEntity>>? orderBy = null,

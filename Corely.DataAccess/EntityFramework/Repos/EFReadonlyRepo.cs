@@ -50,6 +50,15 @@ public class EFReadonlyRepo<TEntity>
         return await DbSet.AnyAsync(query, cancellationToken);
     }
 
+    public virtual async Task<int> CountAsync(
+        Expression<Func<TEntity, bool>>? query = null,
+        CancellationToken cancellationToken = default)
+    {
+        return query == null
+            ? await DbSet.CountAsync(cancellationToken)
+            : await DbSet.CountAsync(query, cancellationToken);
+    }
+
     public virtual async Task<List<TEntity>> ListAsync(
         Expression<Func<TEntity, bool>>? query = null,
         Func<IQueryable<TEntity>, IOrderedQueryable<TEntity>>? orderBy = null,

@@ -47,6 +47,12 @@ internal class Program
         var list = await readonlyRepo.ListAsync();
         Console.WriteLine($"Entities: {string.Join(", ", list.Select(e => e.Name))}");
 
+        // Total count (no predicate) and filtered count demo using CountAsync
+        var totalCount = await readonlyRepo.CountAsync();
+        Console.WriteLine($"Total entity count: {totalCount}");
+        var gammaCount = await readonlyRepo.CountAsync(e => e.Name.Contains("Gamma"));
+        Console.WriteLine($"Entities with 'Gamma' in name: {gammaCount}");
+
         // Check existence
         bool exists = await readonlyRepo.AnyAsync(e => e.Name.Contains("Gamma"));
         Console.WriteLine($"Entity with 'Gamma' in name exists: {exists}");

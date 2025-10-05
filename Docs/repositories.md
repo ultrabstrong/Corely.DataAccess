@@ -10,6 +10,7 @@ public interface IReadonlyRepo<TEntity>
 {
     Task<TEntity?> GetAsync(Expression<Func<TEntity,bool>> query, ...);
     Task<bool> AnyAsync(Expression<Func<TEntity,bool>> query);
+    Task<int> CountAsync(Expression<Func<TEntity,bool>>? query = null);
     Task<List<TEntity>> ListAsync(Expression<Func<TEntity,bool>>? query = null, ...);
 }
 
@@ -25,7 +26,7 @@ public interface IRepo<TEntity> : IReadonlyRepo<TEntity>
 ## Base Implementations
 | Class | Purpose |
 |-------|---------|
-| EFReadonlyRepo<TEntity> | Query only operations (Get, Any, List with include & order) |
+| EFReadonlyRepo<TEntity> | Query only operations (Get, Any, Count, List with include & order) |
 | EFRepo<TEntity> | Adds Create / Update / Delete and ModifiedUtc management |
 
 ## Registration Patterns
@@ -46,7 +47,7 @@ public sealed class DemoRepo<T> : EFRepo<T> where T : class
 Each method supports:
 - include: `Func<IQueryable<TEntity>, IQueryable<TEntity>>`
 - orderBy: `Func<IQueryable<TEntity>, IOrderedQueryable<TEntity>>`
-- predicate (for Get / Any / List)
+- predicate (for Get / Any / Count / List)
 
 Example:
 ```csharp
@@ -54,6 +55,8 @@ var recent = await repo.ListAsync(
     e => e.IsActive,
     orderBy: q => q.OrderByDescending(x => x.CreatedUtc),
     include: q => q.Include(x => x.Children));
+
+var activeCount = await repo.CountAsync(e => e.IsActive);
 ```
 
 ## Update Semantics

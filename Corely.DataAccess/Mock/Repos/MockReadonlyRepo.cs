@@ -23,6 +23,10 @@ public class MockReadonlyRepo<TEntity>
 
     public virtual async Task<bool> AnyAsync(Expression<Func<TEntity, bool>> query, CancellationToken cancellationToken = default) => await _mockRepo.AnyAsync(query, cancellationToken);
 
+    public virtual async Task<int> CountAsync(
+        Expression<Func<TEntity, bool>>? query = null,
+        CancellationToken cancellationToken = default) => await _mockRepo.CountAsync(query, cancellationToken);
+
     public virtual async Task<List<TEntity>> ListAsync(
         Expression<Func<TEntity, bool>>? query = null,
         Func<IQueryable<TEntity>, IOrderedQueryable<TEntity>>? orderBy = null,
