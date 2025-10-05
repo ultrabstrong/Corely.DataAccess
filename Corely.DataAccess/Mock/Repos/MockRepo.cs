@@ -12,20 +12,57 @@ public class MockRepo<TEntity>
 
     public MockRepo() : base() { }
 
+    private static bool TryGetId(object entity, out object? id)
+    {
+        id = null;
+        if (entity == null)
+            return false;
+        var idInterface = entity
+            .GetType()
+            .GetInterfaces()
+            .FirstOrDefault(i => i.IsGenericType && i.GetGenericTypeDefinition() == typeof(IHasIdPk<>));
+        if (idInterface == null)
+            return false;
+        var prop = idInterface.GetProperty("Id");
+        if (prop == null)
+            return false;
+        id = prop.GetValue(entity);
+        return id != null;
+    }
+
+    private static object? GetIdOrNull(object entity)
+        => TryGetId(entity, out var id) ? id : null;
+
+    private static bool IsCreatedUtcUnset(object entity)
+        => entity is IHasCreatedUtc hc && hc.CreatedUtc == default;
+
+    private static void EnsureCreatedUtc(object entity)
+    {
+        if (entity is IHasCreatedUtc hc && hc.CreatedUtc == default)
+        {
+            hc.CreatedUtc = DateTime.UtcNow;
+        }
+    }
+
     public virtual Task<TEntity> CreateAsync(TEntity entity, CancellationToken cancellationToken = default)
     {
+        EnsureCreatedUtc(entity);
         Entities.Add(entity);
         return Task.FromResult(entity);
     }
 
     public virtual Task CreateAsync(params TEntity[] entities)
     {
+        foreach (var e in entities)
+            EnsureCreatedUtc(e);
         Entities.AddRange(entities);
         return Task.CompletedTask;
     }
 
     public virtual Task CreateAsync(IEnumerable<TEntity> entities, CancellationToken cancellationToken = default)
     {
+        foreach (var e in entities)
+            EnsureCreatedUtc(e);
         Entities.AddRange(entities);
         return Task.CompletedTask;
     }
@@ -102,6 +139,27 @@ public class MockRepo<TEntity>
             ((IHasModifiedUtc)entity).ModifiedUtc = DateTime.UtcNow;
         }
 
+        var incomingId = GetIdOrNull(entity);
+        if (incomingId != null)
+        {
+            // Find existing by key (supports value types)
+            for (int i = 0; i < Entities.Count; i++)
+            {
+                var existingId = GetIdOrNull(Entities[i]!);
+                if (existingId != null && Equals(existingId, incomingId))
+                {
+                    // Preserve CreatedUtc if update entity did not set it
+                    if (Entities[i] is IHasCreatedUtc existingCreated && entity is IHasCreatedUtc incomingCreated && IsCreatedUtcUnset(incomingCreated))
+                    {
+                        incomingCreated.CreatedUtc = existingCreated.CreatedUtc;
+                    }
+                    Entities[i] = entity; // replace reference
+                    return Task.CompletedTask;
+                }
+            }
+        }
+
+        // Fallback to reference equality if no key interface implemented or not found
         var index = Entities.FindIndex(e => ReferenceEquals(e, entity));
         if (index > -1)
         {
@@ -112,7 +170,17 @@ public class MockRepo<TEntity>
 
     public virtual Task DeleteAsync(TEntity entity, CancellationToken cancellationToken = default)
     {
-        Entities.Remove(entity);
+        var incomingId = GetIdOrNull(entity);
+        if (incomingId != null)
+        {
+            var toRemove = Entities.FirstOrDefault(e => Equals(GetIdOrNull(e!), incomingId));
+            if (toRemove != null)
+            {
+                Entities.Remove(toRemove);
+                return Task.CompletedTask;
+            }
+        }
+        Entities.Remove(entity); // reference fallback
         return Task.CompletedTask;
     }
 }
