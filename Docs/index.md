@@ -8,6 +8,7 @@ High-level abstractions for data access that keep the domain/persistence boundar
 - Generic repositories (readonly + full CRUD)
 - Lightweight unit of work (transaction) abstraction
 - Demo project showing registration and usage
+- Mock repositories for fast unit tests
 
 ## Quick Start
 ```bash
@@ -31,12 +32,14 @@ services.AddScoped<IUnitOfWorkProvider, EFUoWProvider>();
 | Entity Configuration | EntityConfigurationBase classes centralize common auditing + id setup. |
 | Repositories | EFReadonlyRepo / EFRepo provide generic query + CRUD patterns with extension points. |
 | Unit of Work | EFUoWProvider coordinates optional transactions. |
+| Mock Repositories | In-memory implementations for fast tests without provider dependencies. |
 
 ## Documentation
 - [Configurations](configurations.md)
 - [Entity Configuration & Property Helpers](entity-configuration.md)
 - [Repositories](repositories.md)
 - [Unit of Work](unit-of-work.md)
+- [Mock Repositories](mock-repositories.md)
 
 ## Demo
 See Corely.DataAccess.Demo and Corely.DataAccess.DemoApp for:
