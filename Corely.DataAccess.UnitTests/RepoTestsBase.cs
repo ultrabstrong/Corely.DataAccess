@@ -39,7 +39,7 @@ public abstract class RepoTestsBase : ReadonlyRepoTestsBase
         var updateEntity = Fixture.Create<EntityFixture>();
         updateEntity.Id = entity.Id;
         updateEntity.CreatedUtc = entity.CreatedUtc;
-        await Repo.UpdateAsync(updateEntity, e => e.Id == updateEntity.Id);
+        await Repo.UpdateAsync(updateEntity);
 
         var result = await Repo.GetAsync(e => e.Id == entity.Id);
 
@@ -59,7 +59,7 @@ public abstract class RepoTestsBase : ReadonlyRepoTestsBase
         updateEntity.Id = entity.Id;
 
         await Repo.CreateAsync(entity);
-        await Repo.UpdateAsync(updateEntity, e => e.Id == updateEntity.Id);
+        await Repo.UpdateAsync(updateEntity);
         var result = await Repo.GetAsync(e => e.Id == entity.Id);
 
         Assert.NotNull(result);

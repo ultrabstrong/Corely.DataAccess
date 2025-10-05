@@ -40,24 +40,51 @@ public class EFRepo<TEntity>
         await DbContext.SaveChangesAsync(cancellationToken);
     }
 
-    public virtual async Task UpdateAsync(TEntity entity, Func<TEntity, bool> query, CancellationToken cancellationToken = default)
+    public virtual async Task UpdateAsync(TEntity entity, CancellationToken cancellationToken = default)
     {
         if (typeof(IHasModifiedUtc).IsAssignableFrom(typeof(TEntity)))
         {
             ((IHasModifiedUtc)entity).ModifiedUtc = DateTime.UtcNow;
         }
 
-        var existingEntity = DbSet.Local.FirstOrDefault(query);
-        if (existingEntity == null)
+        // Determine primary key properties for entity type
+        var entityType = DbContext.Model.FindEntityType(typeof(TEntity));
+        var key = entityType?.FindPrimaryKey();
+
+        if (key == null || key.Properties.Count == 0)
         {
-            // attach new entity instance to local context for tracking
-            DbSet.Attach(entity).State = EntityState.Modified;
+            // Fallback: attach and mark modified (no key metadata)
+            DbSet.Attach(entity);
+            DbContext.Entry(entity).State = EntityState.Modified;
         }
         else
         {
-            // update existing tracked entity instance with new entity values
-            DbSet.Entry(existingEntity).CurrentValues.SetValues(entity);
+            // Try to find an already tracked instance with the same key values
+            var tracked = DbSet.Local.FirstOrDefault(local =>
+                // Support composite keys
+                key.Properties.All(pkProp =>
+                {
+                    var clrProp = typeof(TEntity).GetProperty(pkProp.Name);
+                    if (clrProp == null)
+                        return false;
+                    var localVal = clrProp.GetValue(local);
+                    var newVal = clrProp.GetValue(entity);
+                    return Equals(localVal, newVal);
+                }));
+
+            if (tracked != null)
+            {
+                // Update tracked instance values
+                DbContext.Entry(tracked).CurrentValues.SetValues(entity);
+            }
+            else
+            {
+                // Attach incoming entity and mark as modified to update all scalar properties
+                DbSet.Attach(entity);
+                DbContext.Entry(entity).State = EntityState.Modified;
+            }
         }
+
         await DbContext.SaveChangesAsync(cancellationToken);
     }
 

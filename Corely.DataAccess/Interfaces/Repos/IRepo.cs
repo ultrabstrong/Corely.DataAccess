@@ -10,7 +10,7 @@ public interface IRepo<TEntity>
 
     Task CreateAsync(IEnumerable<TEntity> entities, CancellationToken cancellationToken = default);
 
-    Task UpdateAsync(TEntity entity, Func<TEntity, bool> query, CancellationToken cancellationToken = default);
+    Task UpdateAsync(TEntity entity, CancellationToken cancellationToken = default);
 
     Task DeleteAsync(TEntity entity, CancellationToken cancellationToken = default);
 }

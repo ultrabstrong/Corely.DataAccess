@@ -28,10 +28,8 @@ internal class Program
         var list = await repo.ListAsync();
         Console.WriteLine($"Entities: {string.Join(", ", list.Select(e => e.Name))}");
 
-        // Update an entity
-        await repo.UpdateAsync(
-            new DemoEntity { Id = 2, Name = "Beta (updated)" },
-            e => e.Name == "Beta");
+        // Update an entity (key must be set on the instance)
+        await repo.UpdateAsync(new DemoEntity { Id = 2, Name = "Beta (updated)" });
         list = await repo.ListAsync();
         Console.WriteLine($"Entities after update: {string.Join(", ", list.Select(e => e.Name))}");
 

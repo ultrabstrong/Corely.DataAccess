@@ -54,7 +54,7 @@ public class EFRepoTests : RepoTestsBase
         _dbContext.Set<EntityFixture>().Entry(_testEntity).State = EntityState.Detached;
 
         var entity = new EntityFixture { Id = _testEntity.Id };
-        await _efRepo.UpdateAsync(entity, e => e.Id == entity.Id);
+        await _efRepo.UpdateAsync(entity);
 
         var updatedEntity = _dbContext.Set<EntityFixture>().Find(entity.Id);
         Assert.NotNull(updatedEntity);
@@ -75,7 +75,7 @@ public class EFRepoTests : RepoTestsBase
         await _efRepo.CreateAsync(_testEntity);
         var untrackedSetupEntity = new EntityFixture { Id = _testEntity.Id };
 
-        await _efRepo.UpdateAsync(untrackedSetupEntity, u => u.Id == untrackedSetupEntity.Id);
+        await _efRepo.UpdateAsync(untrackedSetupEntity);
 
         // UpdateAsync automatically updates the ModifiedUtc
         // It should find and update ModifiedUtc of the original entity

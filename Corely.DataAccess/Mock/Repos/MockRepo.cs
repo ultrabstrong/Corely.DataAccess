@@ -84,15 +84,18 @@ public class MockRepo<TEntity>
         return Task.FromResult(queryable.ToList());
     }
 
-    public virtual Task UpdateAsync(TEntity entity, Func<TEntity, bool> query, CancellationToken cancellationToken = default)
+    public virtual Task UpdateAsync(TEntity entity, CancellationToken cancellationToken = default)
     {
         if (typeof(IHasModifiedUtc).IsAssignableFrom(typeof(TEntity)))
         {
             ((IHasModifiedUtc)entity).ModifiedUtc = DateTime.UtcNow;
         }
 
-        var index = Entities.FindIndex(new(query));
-        if (index > -1) { Entities[index] = entity; }
+        var index = Entities.FindIndex(e => ReferenceEquals(e, entity));
+        if (index > -1)
+        {
+            Entities[index] = entity;
+        }
         return Task.CompletedTask;
     }
 
