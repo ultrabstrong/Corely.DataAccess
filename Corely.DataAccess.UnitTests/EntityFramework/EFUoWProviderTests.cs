@@ -1,5 +1,6 @@
 ﻿using Corely.DataAccess.EntityFramework;
 using Corely.DataAccess.UnitTests.Fixtures;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Storage;
 using Moq;
@@ -25,7 +26,6 @@ public class EFUoWProviderTests
         mockDatabaseFacade.Setup(d => d.BeginTransactionAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync(() => _transaction.Object);
         dbContextMock.SetupGet(c => c.Database).Returns(mockDatabaseFacade.Object);
-
         return dbContextMock;
     }
 
@@ -33,7 +33,6 @@ public class EFUoWProviderTests
     public async Task BeginAsync_BeginsTransaction()
     {
         await _efUoWProvider.BeginAsync();
-
         _iamDbContextMock.Verify(c =>
             c.Database.BeginTransactionAsync(It.IsAny<CancellationToken>()), Times.Once);
     }
@@ -43,7 +42,6 @@ public class EFUoWProviderTests
     {
         await _efUoWProvider.BeginAsync();
         await _efUoWProvider.CommitAsync();
-
         _transaction.Verify(m => m.CommitAsync(It.IsAny<CancellationToken>()), Times.Once);
         _transaction.Verify(m => m.DisposeAsync(), Times.Once);
     }
@@ -53,7 +51,6 @@ public class EFUoWProviderTests
     {
         await _efUoWProvider.BeginAsync();
         await _efUoWProvider.RollbackAsync();
-
         _transaction.Verify(m => m.RollbackAsync(It.IsAny<CancellationToken>()), Times.Once);
         _transaction.Verify(m => m.DisposeAsync(), Times.Once);
     }
@@ -62,9 +59,7 @@ public class EFUoWProviderTests
     public async Task Dispose_DisposesDbContextAndTransaction()
     {
         await _efUoWProvider.BeginAsync();
-
         _efUoWProvider.Dispose();
-
         _iamDbContextMock.Verify(c => c.Dispose(), Times.Once);
         _transaction.Verify(m => m.Dispose(), Times.Once);
     }
@@ -73,10 +68,36 @@ public class EFUoWProviderTests
     public async Task DisposeAsync_DisposesDbContextAndTransaction()
     {
         await _efUoWProvider.BeginAsync();
-
         await _efUoWProvider.DisposeAsync();
-
         _iamDbContextMock.Verify(c => c.DisposeAsync(), Times.Once);
         _transaction.Verify(m => m.DisposeAsync(), Times.Once);
+    }
+
+    [Fact]
+    public async Task CommitAsync_CallsSaveChanges_WhenActiveScope()
+    {
+        await _efUoWProvider.BeginAsync();
+        _iamDbContextMock.Verify(c => c.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Never);
+        await _efUoWProvider.CommitAsync();
+        _iamDbContextMock.Verify(c => c.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task RollbackAsync_ClearsChangeTracker_WhenNoTransaction()
+    {
+        // InMemory provider path (no real transaction). Force Begin on non-transaction provider.
+        var inMemoryOptions = new DbContextOptionsBuilder<DbContextFixture>()
+            .UseInMemoryDatabase(Guid.NewGuid().ToString())
+            .Options;
+        var realContext = new DbContextFixture(inMemoryOptions);
+        var provider = new EFUoWProvider(realContext);
+
+        await provider.BeginAsync();
+        realContext.Add(new EntityFixture());
+        Assert.True(realContext.ChangeTracker.Entries().Any());
+
+        await provider.RollbackAsync();
+
+        Assert.False(realContext.ChangeTracker.Entries().Any());
     }
 }

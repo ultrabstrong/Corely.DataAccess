@@ -16,10 +16,10 @@ public interface IReadonlyRepo<TEntity>
 
 public interface IRepo<TEntity> : IReadonlyRepo<TEntity>
 {
-    Task<TEntity> CreateAsync(TEntity entity);
-    Task CreateAsync(params TEntity[] entities);
-    Task UpdateAsync(TEntity entity, Func<TEntity,bool> identityPredicate);
-    Task DeleteAsync(TEntity entity);
+    Task<TEntity> CreateAsync(TEntity entity, CancellationToken ct = default);
+    Task CreateAsync(IEnumerable<TEntity> entities, CancellationToken ct = default);
+    Task UpdateAsync(TEntity entity, CancellationToken ct = default);
+    Task DeleteAsync(TEntity entity, CancellationToken ct = default);
 }
 ```
 
@@ -27,7 +27,7 @@ public interface IRepo<TEntity> : IReadonlyRepo<TEntity>
 | Class | Purpose |
 |-------|---------|
 | EFReadonlyRepo<TEntity> | Query only operations (Get, Any, Count, List with include & order) |
-| EFRepo<TEntity> | Adds Create / Update / Delete and ModifiedUtc management |
+| EFRepo<TEntity> | Adds Create / Update / Delete, ModifiedUtc management, UoW-aware deferred persistence |
 
 ## Registration Patterns
 Open generics:
@@ -59,13 +59,36 @@ var recent = await repo.ListAsync(
 var activeCount = await repo.CountAsync(e => e.IsActive);
 ```
 
+## Create Semantics
+- Single entity: `await repo.CreateAsync(entity);`
+- Batch: `await repo.CreateAsync(entities); // IEnumerable<TEntity>`
+- If inside an active Unit of Work (`EFUoWProvider.BeginAsync()` called), changes are staged and flushed on `CommitAsync()`; otherwise `SaveChangesAsync` is called immediately (only if there are tracked changes).
+
 ## Update Semantics
-`UpdateAsync(entity, predicate)`
-- If entity tracked locally (matched via predicate) values are set via `Entry(existing).CurrentValues.SetValues(entity)`
-- If not, entity is attached and marked Modified
-- If entity implements `IHasModifiedUtc`, `ModifiedUtc` auto-updated
+`UpdateAsync(entity)`
+- If an entity with the same primary key is already tracked, its values are updated via `Entry(tracked).CurrentValues.SetValues(entity)`.
+- If not tracked, the entity is attached and marked `Modified`.
+- Composite keys are supported (resolved from EF Core model metadata).
+- If the entity implements `IHasModifiedUtc`, that timestamp is automatically updated.
+- Within an active Unit of Work, the update is deferred until commit.
+
+## Delete Semantics
+`DeleteAsync(entity)`
+- Removes the entity (by reference / key resolution by EF). Within a Unit of Work, deletion is deferred until commit.
+
+## Unit of Work Integration
+Using `EFUoWProvider`:
+```csharp
+await uow.BeginAsync();
+await repo.CreateAsync(newEntity);
+await repo.UpdateAsync(existingEntity);
+await repo.DeleteAsync(toRemove);
+await uow.CommitAsync(); // single SaveChanges + optional transaction commit
+```
+Rollback scenario (no transaction provider, e.g. InMemory): pending tracked changes are cleared on `RollbackAsync()`.
 
 ## When to Create a Custom Repo
 - Add domain-specific query helpers aggregated from multiple generic queries
 - Optimize frequently used patterns with compiled queries
 - Encapsulate raw SQL when needed
+- Implement provider-specific behaviors beyond EF (e.g., soft delete flags, multi-tenancy filtering)

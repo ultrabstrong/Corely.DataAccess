@@ -25,7 +25,7 @@ public abstract class RepoTestsBase : ReadonlyRepoTestsBase
     public async Task Create_ThenList_ReturnsAllAdded()
     {
         var entities = Fixture.CreateMany<EntityFixture>().ToArray();
-        await Repo.CreateAsync(entities);
+        await Repo.CreateAsync(entities); // adjust after interface change
         var result = await Repo.ListAsync();
         Assert.True(entities.SequenceEqual(result));
     }

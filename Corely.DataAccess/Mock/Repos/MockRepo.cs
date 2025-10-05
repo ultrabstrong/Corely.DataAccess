@@ -51,14 +51,6 @@ public class MockRepo<TEntity>
         return Task.FromResult(entity);
     }
 
-    public virtual Task CreateAsync(params TEntity[] entities)
-    {
-        foreach (var e in entities)
-            EnsureCreatedUtc(e);
-        Entities.AddRange(entities);
-        return Task.CompletedTask;
-    }
-
     public virtual Task CreateAsync(IEnumerable<TEntity> entities, CancellationToken cancellationToken = default)
     {
         foreach (var e in entities)

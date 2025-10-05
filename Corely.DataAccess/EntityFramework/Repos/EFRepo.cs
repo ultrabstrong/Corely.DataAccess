@@ -21,23 +21,25 @@ public class EFRepo<TEntity>
         Logger.LogDebug("{RepoType} created for {EntityType}", GetType().Name.Split('`')[0], typeof(TEntity).Name);
     }
 
+    private bool ShouldSaveChanges() => !EFUoWScope.IsActive && DbContext.ChangeTracker.HasChanges();
+
     public virtual async Task<TEntity> CreateAsync(TEntity entity, CancellationToken cancellationToken = default)
     {
         var newEntity = await DbSet.AddAsync(entity, cancellationToken);
-        await DbContext.SaveChangesAsync(cancellationToken);
+        if (ShouldSaveChanges())
+        {
+            await DbContext.SaveChangesAsync(cancellationToken);
+        }
         return newEntity.Entity;
-    }
-
-    public virtual async Task CreateAsync(params TEntity[] entities)
-    {
-        await DbSet.AddRangeAsync(entities);
-        await DbContext.SaveChangesAsync();
     }
 
     public virtual async Task CreateAsync(IEnumerable<TEntity> entities, CancellationToken cancellationToken = default)
     {
         await DbSet.AddRangeAsync(entities, cancellationToken);
-        await DbContext.SaveChangesAsync(cancellationToken);
+        if (ShouldSaveChanges())
+        {
+            await DbContext.SaveChangesAsync(cancellationToken);
+        }
     }
 
     public virtual async Task UpdateAsync(TEntity entity, CancellationToken cancellationToken = default)
@@ -85,12 +87,18 @@ public class EFRepo<TEntity>
             }
         }
 
-        await DbContext.SaveChangesAsync(cancellationToken);
+        if (ShouldSaveChanges())
+        {
+            await DbContext.SaveChangesAsync(cancellationToken);
+        }
     }
 
     public virtual async Task DeleteAsync(TEntity entity, CancellationToken cancellationToken = default)
     {
         DbSet.Remove(entity);
-        await DbContext.SaveChangesAsync(cancellationToken);
+        if (ShouldSaveChanges())
+        {
+            await DbContext.SaveChangesAsync(cancellationToken);
+        }
     }
 }

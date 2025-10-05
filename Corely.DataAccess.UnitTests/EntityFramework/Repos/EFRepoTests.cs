@@ -1,4 +1,5 @@
 ﻿using AutoFixture;
+using Corely.DataAccess.EntityFramework;
 using Corely.DataAccess.EntityFramework.Repos;
 using Corely.DataAccess.Interfaces.Repos;
 using Corely.DataAccess.UnitTests.Fixtures;
@@ -32,9 +33,7 @@ public class EFRepoTests : RepoTestsBase
     public async Task CreateAsync_AddsEntity()
     {
         await _efRepo.CreateAsync(_testEntity);
-
         var entity = _dbContext.Set<EntityFixture>().Find(_testEntity.Id);
-
         Assert.Equal(_testEntity, entity);
     }
 
@@ -42,7 +41,6 @@ public class EFRepoTests : RepoTestsBase
     public async Task GetAsync_ReturnsEntity()
     {
         await _efRepo.CreateAsync(_testEntity);
-
         var entity = await _efRepo.GetAsync(e => e.Id == _testEntity.Id);
         Assert.Equal(_testEntity, entity);
     }
@@ -85,6 +83,45 @@ public class EFRepoTests : RepoTestsBase
             _testEntity.ModifiedUtc.Value,
             DateTime.UtcNow.AddSeconds(-2),
             DateTime.UtcNow);
+    }
+
+    [Fact]
+    public async Task DeferredPersistence_InsideUnitOfWork_DoesNotSaveUntilCommit()
+    {
+        var uow = new EFUoWProvider(_dbContext);
+        await uow.BeginAsync();
+
+        var e1 = new EntityFixture { Id = 200 };
+        var e2 = new EntityFixture { Id = 201 };
+        await _efRepo.CreateAsync(e1);
+        await _efRepo.CreateAsync(e2);
+
+        // Not saved yet (ChangeTracker has Added entries but db set Find returns null)
+        Assert.Null(_dbContext.Set<EntityFixture>().Find(200));
+        Assert.Null(_dbContext.Set<EntityFixture>().Find(201));
+
+        await uow.CommitAsync();
+
+        Assert.NotNull(_dbContext.Set<EntityFixture>().Find(200));
+        Assert.NotNull(_dbContext.Set<EntityFixture>().Find(201));
+    }
+
+    [Fact]
+    public async Task Rollback_ClearsPendingChanges_ForDeferredOps()
+    {
+        var uow = new EFUoWProvider(_dbContext);
+        await uow.BeginAsync();
+
+        var e1 = new EntityFixture { Id = 300 };
+        await _efRepo.CreateAsync(e1);
+
+        Assert.Null(_dbContext.Set<EntityFixture>().Find(300));
+
+        await uow.RollbackAsync();
+
+        // After rollback, entity should not be persisted and tracker cleared
+        Assert.Null(_dbContext.Set<EntityFixture>().Find(300));
+        Assert.DoesNotContain(_dbContext.ChangeTracker.Entries(), e => e.Entity is EntityFixture ef && ef.Id == 300);
     }
 
     protected override int FillRepoAndReturnId()

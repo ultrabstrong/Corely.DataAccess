@@ -6,8 +6,6 @@ public interface IRepo<TEntity>
 {
     Task<TEntity> CreateAsync(TEntity entity, CancellationToken cancellationToken = default);
 
-    Task CreateAsync(params TEntity[] entities);
-
     Task CreateAsync(IEnumerable<TEntity> entities, CancellationToken cancellationToken = default);
 
     Task UpdateAsync(TEntity entity, CancellationToken cancellationToken = default);

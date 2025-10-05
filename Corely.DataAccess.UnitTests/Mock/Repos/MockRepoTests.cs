@@ -13,11 +13,7 @@ public class MockRepoTests : RepoTestsBase
     protected override int FillRepoAndReturnId()
     {
         var entityList = Fixture.CreateMany<EntityFixture>(5).ToList();
-        foreach (var entity in entityList)
-        {
-            _mockRepo.CreateAsync(entity);
-        }
-
+        _mockRepo.CreateAsync(entityList); // fire & forget acceptable in tests
         return entityList[2].Id;
     }
 
@@ -32,7 +28,7 @@ public class MockRepoTests : RepoTestsBase
     [Fact]
     public async Task Create_SetsCreatedUtc_WhenUnset()
     {
-        var e = NewEntity(100); // CreatedUtc default
+        var e = NewEntity(100);
         Assert.Equal(default, e.CreatedUtc);
         await _mockRepo.CreateAsync(e);
         Assert.NotEqual(default, e.CreatedUtc);
@@ -52,12 +48,16 @@ public class MockRepoTests : RepoTestsBase
     {
         var original = NewEntity(102, DateTime.UtcNow.AddDays(-2));
         await _mockRepo.CreateAsync(original);
+
         var replacement = NewEntity(102, original.CreatedUtc);
         await _mockRepo.UpdateAsync(replacement);
+
         var fetched = await _mockRepo.GetAsync(x => x.Id == 102);
+
         Assert.NotNull(fetched);
         Assert.Same(replacement, fetched);
         Assert.NotSame(original, fetched);
+
         var count = await _mockRepo.CountAsync();
         Assert.Equal(1, count);
     }
@@ -68,9 +68,12 @@ public class MockRepoTests : RepoTestsBase
         var originalCreated = DateTime.UtcNow.AddDays(-3);
         var original = NewEntity(103, originalCreated);
         await _mockRepo.CreateAsync(original);
-        var incoming = NewEntity(103); // CreatedUtc default -> should be preserved
+
+        var incoming = NewEntity(103);
         await _mockRepo.UpdateAsync(incoming);
+
         var fetched = await _mockRepo.GetAsync(x => x.Id == 103);
+
         Assert.NotNull(fetched);
         Assert.Equal(originalCreated, fetched!.CreatedUtc);
     }
@@ -80,9 +83,11 @@ public class MockRepoTests : RepoTestsBase
     {
         var original = NewEntity(104, DateTime.UtcNow.AddDays(-1));
         await _mockRepo.CreateAsync(original);
+
         var incoming = NewEntity(104, original.CreatedUtc);
         var before = DateTime.UtcNow;
         await _mockRepo.UpdateAsync(incoming);
+
         Assert.NotNull(incoming.ModifiedUtc);
         Assert.True(incoming.ModifiedUtc > before.AddSeconds(-1));
     }
@@ -92,8 +97,10 @@ public class MockRepoTests : RepoTestsBase
     {
         var original = NewEntity(105, DateTime.UtcNow.AddDays(-1));
         await _mockRepo.CreateAsync(original);
-        var phantom = NewEntity(105); // different reference same key
+
+        var phantom = NewEntity(105);
         await _mockRepo.DeleteAsync(phantom);
+
         var count = await _mockRepo.CountAsync();
         Assert.Equal(0, count);
     }
@@ -108,12 +115,15 @@ public class MockRepoTests : RepoTestsBase
     public async Task Delete_FallbacksToReference_WhenNoKeyInterface()
     {
         var repo = new MockRepo<NoKeyEntity>();
-        var a = new NoKeyEntity();
-        var b = new NoKeyEntity();
-        await repo.CreateAsync(a, b);
-        await repo.DeleteAsync(a);
+        await repo.CreateAsync(new[] { new NoKeyEntity(), new NoKeyEntity() });
+
+        var first = repo.Entities.First();
+        var second = repo.Entities.Skip(1).First();
+
+        await repo.DeleteAsync(first);
+
         Assert.Single(repo.Entities);
-        Assert.Same(b, repo.Entities.First());
+        Assert.Same(second, repo.Entities.First());
     }
 
     [Fact]
@@ -122,9 +132,11 @@ public class MockRepoTests : RepoTestsBase
         var repo = new MockRepo<NoKeyEntity>();
         var a = new NoKeyEntity();
         var b = new NoKeyEntity();
-        await repo.CreateAsync(a, b);
+        await repo.CreateAsync([a, b]);
+
         var c = new NoKeyEntity();
-        await repo.UpdateAsync(c); // no key, not same ref -> no change
+        await repo.UpdateAsync(c);
+
         Assert.Equal(2, repo.Entities.Count);
         Assert.Contains(a, repo.Entities);
         Assert.Contains(b, repo.Entities);
@@ -135,7 +147,9 @@ public class MockRepoTests : RepoTestsBase
     {
         var e1 = NewEntity(106);
         var e2 = NewEntity(107);
-        await _mockRepo.CreateAsync(e1, e2);
+
+        await _mockRepo.CreateAsync([e1, e2]);
+
         Assert.NotEqual(default, e1.CreatedUtc);
         Assert.NotEqual(default, e2.CreatedUtc);
     }
@@ -145,10 +159,13 @@ public class MockRepoTests : RepoTestsBase
     {
         var original = NewEntity(108, DateTime.UtcNow.AddDays(-5));
         await _mockRepo.CreateAsync(original);
+
         var newCreated = DateTime.UtcNow.AddDays(-1);
         var incoming = NewEntity(108, newCreated);
         await _mockRepo.UpdateAsync(incoming);
+
         var fetched = await _mockRepo.GetAsync(x => x.Id == 108);
+
         Assert.NotNull(fetched);
         Assert.Equal(newCreated, fetched!.CreatedUtc);
     }

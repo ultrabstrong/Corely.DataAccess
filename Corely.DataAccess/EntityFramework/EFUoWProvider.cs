@@ -15,11 +15,15 @@ public class EFUoWProvider : DisposeBase, IUnitOfWorkProvider
     {
         _dbContext = dbContext;
         _supportTransactions = dbContext.Database.ProviderName
-            != "Microsoft.EntityFrameworkCore.InMemory";
+            != "Microsoft.EntityFrameworkCore.InMemory"; // no transactional support
     }
 
     public async Task BeginAsync(CancellationToken cancellationToken = default)
     {
+        if (!EFUoWScope.IsActive)
+        {
+            EFUoWScope.Begin();
+        }
         if (_transaction == null && _supportTransactions)
         {
             _transaction = await _dbContext.Database.BeginTransactionAsync(cancellationToken);
@@ -28,21 +32,52 @@ public class EFUoWProvider : DisposeBase, IUnitOfWorkProvider
 
     public async Task CommitAsync(CancellationToken cancellationToken = default)
     {
-        if (_transaction != null)
+        try
         {
-            await _transaction.CommitAsync(cancellationToken);
-            await _transaction.DisposeAsync();
-            _transaction = null;
+            if (EFUoWScope.IsActive)
+            {
+                // Flush pending changes first
+                await _dbContext.SaveChangesAsync(cancellationToken);
+            }
+            if (_transaction != null)
+            {
+                await _transaction.CommitAsync(cancellationToken);
+                await _transaction.DisposeAsync();
+                _transaction = null;
+            }
+        }
+        finally
+        {
+            // Always end scope
+            if (EFUoWScope.IsActive)
+            {
+                EFUoWScope.End();
+            }
         }
     }
 
     public async Task RollbackAsync(CancellationToken cancellationToken = default)
     {
-        if (_transaction != null)
+        try
         {
-            await _transaction.RollbackAsync(cancellationToken);
-            await _transaction.DisposeAsync();
-            _transaction = null;
+            if (_transaction != null)
+            {
+                await _transaction.RollbackAsync(cancellationToken);
+                await _transaction.DisposeAsync();
+                _transaction = null;
+            }
+            else if (EFUoWScope.IsActive)
+            {
+                // Non-transaction provider: discard pending changes
+                _dbContext.ChangeTracker.Clear();
+            }
+        }
+        finally
+        {
+            if (EFUoWScope.IsActive)
+            {
+                EFUoWScope.End();
+            }
         }
     }
 
@@ -50,6 +85,7 @@ public class EFUoWProvider : DisposeBase, IUnitOfWorkProvider
     {
         _transaction?.Dispose();
         _dbContext?.Dispose();
+        EFUoWScope.End();
     }
 
     protected async override ValueTask DisposeAsyncCore()
@@ -62,5 +98,6 @@ public class EFUoWProvider : DisposeBase, IUnitOfWorkProvider
         {
             await _dbContext.DisposeAsync();
         }
+        EFUoWScope.End();
     }
 }
