@@ -3,7 +3,6 @@ using Corely.DataAccess.Interfaces.Repos;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using System.Linq.Expressions;
-using System.Threading;
 
 namespace Corely.DataAccess.EntityFramework.Repos;
 

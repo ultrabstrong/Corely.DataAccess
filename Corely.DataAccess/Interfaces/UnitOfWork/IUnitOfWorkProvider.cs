@@ -1,6 +1,4 @@
-﻿using System.Threading;
-
-namespace Corely.DataAccess.Interfaces.UnitOfWork;
+﻿namespace Corely.DataAccess.Interfaces.UnitOfWork;
 
 public interface IUnitOfWorkProvider
 {

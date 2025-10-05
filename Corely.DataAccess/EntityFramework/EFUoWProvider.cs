@@ -2,7 +2,6 @@
 using Corely.DataAccess.Interfaces.UnitOfWork;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage;
-using System.Threading;
 
 namespace Corely.DataAccess.EntityFramework;
 
