@@ -17,15 +17,19 @@ public class MockRepo<TEntity>
         id = null;
         if (entity == null)
             return false;
+
         var idInterface = entity
             .GetType()
             .GetInterfaces()
             .FirstOrDefault(i => i.IsGenericType && i.GetGenericTypeDefinition() == typeof(IHasIdPk<>));
+
         if (idInterface == null)
             return false;
+
         var prop = idInterface.GetProperty("Id");
         if (prop == null)
             return false;
+
         id = prop.GetValue(entity);
         return id != null;
     }

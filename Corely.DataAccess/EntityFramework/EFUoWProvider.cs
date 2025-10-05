@@ -36,7 +36,6 @@ public class EFUoWProvider : DisposeBase, IUnitOfWorkProvider
         {
             if (EFUoWScope.IsActive)
             {
-                // Flush pending changes first
                 await _dbContext.SaveChangesAsync(cancellationToken);
             }
             if (_transaction != null)
@@ -48,7 +47,6 @@ public class EFUoWProvider : DisposeBase, IUnitOfWorkProvider
         }
         finally
         {
-            // Always end scope
             if (EFUoWScope.IsActive)
             {
                 EFUoWScope.End();
@@ -68,7 +66,6 @@ public class EFUoWProvider : DisposeBase, IUnitOfWorkProvider
             }
             else if (EFUoWScope.IsActive)
             {
-                // Non-transaction provider: discard pending changes
                 _dbContext.ChangeTracker.Clear();
             }
         }
