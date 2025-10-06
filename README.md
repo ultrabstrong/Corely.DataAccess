@@ -1,4 +1,4 @@
-# Corely Common
+# Corely Data Access
 This library helps abstract the persistence mechanism to an implementation detail; keeping the domain layer clean
 
 ## Installation
@@ -14,7 +14,7 @@ Corely.DataAccess provides a set of utilities to help you work with data access 
 
 
 ## Documentation
-Details about each utility can be found in the [documentation](https://github.com/ultrabstrong/Corely.DataAccess/blob/master/Docs/index.md).
+Details about using this library can be found in the [documentation](https://github.com/ultrabstrong/Corely.DataAccess/blob/master/Docs/index.md).
 
 ## Repository
 [Corely.DataAccess](https://github.com/ultrabstrong/Corely.DataAccess)
