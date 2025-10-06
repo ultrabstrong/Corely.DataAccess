@@ -20,6 +20,7 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Docs", "Docs", "{02EA681E-C
 		Docs\configurations.md = Docs\configurations.md
 		Docs\entity-configuration.md = Docs\entity-configuration.md
 		Docs\index.md = Docs\index.md
+		Docs\mock-repositories.md = Docs\mock-repositories.md
 		Docs\repositories.md = Docs\repositories.md
 		Docs\unit-of-work.md = Docs\unit-of-work.md
 	EndProjectSection
