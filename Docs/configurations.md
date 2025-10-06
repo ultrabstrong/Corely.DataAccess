@@ -38,7 +38,7 @@ services.AddSingleton<IEFConfiguration>(new MySqlDemoConfiguration(mySqlConnecti
 ```
 
 ### Accessing Db Types
-EntityConfigurationBase and its helpers consume `IEFDbTypes` from `GetDbTypes()`—user code rarely needs it directly.
+EntityConfigurationBase and its helpers consume `IEFDbTypes` from `GetDbTypes()`—application code rarely needs it directly.
 
 ### Patterns
 - Register one singleton IEFConfiguration per context.

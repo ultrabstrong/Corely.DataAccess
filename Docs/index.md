@@ -17,15 +17,15 @@ dotnet add package Corely.DataAccess
 
 Minimal (single DbContext, no custom subclasses):
 ```csharp
-services.AddSingleton<IEFConfiguration>(new InMemoryConfiguration());
+services.AddSingleton<IEFConfiguration>(new InMemoryDemoConfiguration("quickstart-db"));
 services.AddScoped<MyDbContext>();
 services.AddScoped(typeof(IReadonlyRepo<>), typeof(EFReadonlyRepo<>));
 services.AddScoped(typeof(IRepo<>), typeof(EFRepo<>));
-services.AddScoped<IUnitOfWorkProvider, EFUoWProvider>(); // optional but recommended for batching
+services.AddScoped<IUnitOfWorkProvider, EFUoWProvider>(); // optional but recommended for batching / atomic multi-write
 ```
 Full / Custom (context-specific repo & UoW subclasses):
 ```csharp
-services.AddSingleton<IEFConfiguration>(new InMemoryConfiguration());
+services.AddSingleton<IEFConfiguration>(new InMemoryDemoConfiguration("custom-db"));
 services.AddScoped<MyDbContext>();
 // Custom repo + UoW subclasses
 services.AddScoped(typeof(IReadonlyRepo<>), typeof(MyReadonlyRepo<>));
@@ -40,7 +40,7 @@ services.AddScoped<IUnitOfWorkProvider, MyUoWProvider>();
 | Provider Bases | EFInMemoryConfigurationBase, EFMySqlConfigurationBase, EFPostgresConfigurationBase inherit IEFConfiguration. |
 | Entity Configuration | EntityConfigurationBase classes centralize common auditing + id setup. |
 | Repositories | EFReadonlyRepo / EFRepo provide generic query + CRUD patterns with extension points. |
-| Unit of Work | EFUoWProvider coordinates optional transactions. |
+| Unit of Work | EFUoWProvider coordinates deferred SaveChanges + optional transactions. |
 | Mock Repositories | In-memory implementations for fast tests without provider dependencies. |
 
 ## Documentation

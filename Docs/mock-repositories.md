@@ -10,35 +10,32 @@ Lightweight in-memory implementations are provided for fast unit tests and demos
 ## When To Use
 - Unit tests that do not assert EF Core change tracking specifics
 - Prototyping or console demos
-- Verifying repository contract logic without a provider dependency
+- Verifying service / domain logic against repository contracts without a provider dependency
 
-Avoid for: behavior relying on EF Core query translation, relational constraints, transactions, or concurrency.
+Avoid for: scenarios relying on EF Core query translation, relational constraints, concurrency tokens, or actual transaction semantics.
 
 ## Behavior Notes
 - All methods are `virtual` enabling overriding / spying.
-- `Include` and `OrderBy` delegates are executed against LINQ-to-Objects (`IQueryable`).
-- `CountAsync` supports optional predicate (mirrors EF variant) and executes synchronously then wraps result in a completed task.
-- `UpdateAsync` attempts to replace the exact reference only (no key resolution). Designed for simple scenarios.
-- `IHasModifiedUtc` entities have `ModifiedUtc` set during `UpdateAsync` (mirrors EF implementation behavior).
+- `Include` and `OrderBy` delegates run against LINQ-to-Objects.
+- `CountAsync` and `AnyAsync` compile the expression and evaluate in memory.
+- `CreateAsync` auto-sets `CreatedUtc` if entity implements `IHasCreatedUtc` and value is default.
+- `UpdateAsync` sets `ModifiedUtc` when implementing `IHasModifiedUtc` and now prefers key-based replacement when entity implements `IHasIdPk<TKey>`; falls back to reference equality if no key.
+- `DeleteAsync` removes by key when available; otherwise by reference.
 
 ## Basic Usage
 ```csharp
-var mockRepo = new MockRepo<MyEntity>();
-await mockRepo.CreateAsync(new MyEntity { Id = 1, Name = "Alpha" });
-await mockRepo.CreateAsync(new MyEntity { Id = 2, Name = "Beta" });
-
-bool anyBeta = await mockRepo.AnyAsync(e => e.Name == "Beta"); // true
-int total = await mockRepo.CountAsync();                        // 2
-int filtered = await mockRepo.CountAsync(e => e.Name.Contains("a"));
-var first = await mockRepo.GetAsync(e => e.Id == 1);
-var ordered = await mockRepo.ListAsync(orderBy: q => q.OrderBy(e => e.Name));
+var repo = new MockRepo<MyEntity>();
+await repo.CreateAsync(new MyEntity { Id = 1, Name = "Alpha" });
+await repo.CreateAsync(new [] { new MyEntity { Id = 2 }, new MyEntity { Id = 3 } });
+var item = await repo.GetAsync(e => e.Id == 2);
+await repo.UpdateAsync(new MyEntity { Id = 2, Name = "Updated" });
+var list = await repo.ListAsync(); // contains updated entity
 ```
 
 ## Readonly Wrapper
 ```csharp
 var fullRepo = new MockRepo<MyEntity>();
 var readonlyRepo = new MockReadonlyRepo<MyEntity>(fullRepo); // shares same backing list
-
 await fullRepo.CreateAsync(new MyEntity { Id = 10, Name = "Gamma" });
 int count = await readonlyRepo.CountAsync(); // 1
 ```
@@ -50,11 +47,10 @@ public class MyServiceTests
     private readonly MockRepo<MyEntity> _repo = new();
 
     [Fact]
-    public async Task Service_Uses_CountAsync()
+    public async Task Service_Counts()
     {
         await _repo.CreateAsync(new MyEntity { Id = 1, Name = "A" });
         await _repo.CreateAsync(new MyEntity { Id = 2, Name = "B" });
-
         var active = await _repo.CountAsync(e => e.Id > 0);
         Assert.Equal(2, active);
     }
@@ -64,12 +60,11 @@ public class MyServiceTests
 ## Limitations vs EF
 | Concern | Mock | EF Core |
 |---------|------|---------|
-| LINQ translation errors | Not surfaced | Thrown at runtime/execution |
-| Change tracking graph resolution | Reference equality only | Key + tracking graph resolution |
-| Transactions | Not supported | Supported via DbContext/Database |
-| Query performance | In-memory list | Provider dependent |
-
-If your test needs to validate EF translation or relational constraints, prefer the EF InMemory or a real provider with a test database.
+| LINQ translation errors | Not surfaced (all in-memory) | Thrown at execution | 
+| Change tracking resolution | Key or reference replacement only | Full key + relationship tracking | 
+| Transactions | Not supported | Supported (DbContext / Database) | 
+| Concurrency tokens / store gen | Ignored | Enforced / generated | 
+| Query performance | In-memory list | Provider dependent | 
 
 ## Summary
-Use the mock repositories for fast, deterministic tests focusing on business logic around repository contracts—not for validating EF Core provider behavior.
+Mock repos trade fidelity for speed and determinism. Use them to test business logic, not EF Core translation or relational behavior. Promote tests needing real provider semantics to an integration test layer.
