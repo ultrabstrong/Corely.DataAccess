@@ -15,13 +15,22 @@ High-level abstractions for data access that keep the domain/persistence boundar
 dotnet add package Corely.DataAccess
 ```
 
+Minimal (single DbContext, no custom subclasses):
 ```csharp
-// Registration (simplified)
 services.AddSingleton<IEFConfiguration>(new InMemoryConfiguration());
 services.AddScoped<MyDbContext>();
 services.AddScoped(typeof(IReadonlyRepo<>), typeof(EFReadonlyRepo<>));
 services.AddScoped(typeof(IRepo<>), typeof(EFRepo<>));
-services.AddScoped<IUnitOfWorkProvider, EFUoWProvider>();
+services.AddScoped<IUnitOfWorkProvider, EFUoWProvider>(); // optional but recommended for batching
+```
+Full / Custom (context-specific repo & UoW subclasses):
+```csharp
+services.AddSingleton<IEFConfiguration>(new InMemoryConfiguration());
+services.AddScoped<MyDbContext>();
+// Custom repo + UoW subclasses
+services.AddScoped(typeof(IReadonlyRepo<>), typeof(MyReadonlyRepo<>));
+services.AddScoped(typeof(IRepo<>), typeof(MyRepo<>));
+services.AddScoped<IUnitOfWorkProvider, MyUoWProvider>();
 ```
 
 ## Key Concepts

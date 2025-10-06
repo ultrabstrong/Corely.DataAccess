@@ -9,7 +9,7 @@ internal class Program
 {
     static async Task Main()
     {
-        var provider = ServiceRegistration.GetDemoServiceProvider();
+        var provider = ServiceRegistration.GetFullServiceProvider();
         await RepoExample(provider);
         await ReadonlyRepoExample(provider);
         await UnitOfWorkExample(provider);

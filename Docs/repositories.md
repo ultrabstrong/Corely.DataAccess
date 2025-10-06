@@ -77,7 +77,7 @@ var activeCount = await repo.CountAsync(e => e.IsActive);
 - Removes the entity (by reference / key resolution by EF). Within a Unit of Work, deletion is deferred until commit.
 
 ## Unit of Work Integration
-Using `EFUoWProvider`:
+(See [Unit of Work](unit-of-work.md) for provider details and guidance.)
 ```csharp
 await uow.BeginAsync();
 await repo.CreateAsync(newEntity);
@@ -87,8 +87,15 @@ await uow.CommitAsync(); // single SaveChanges + optional transaction commit
 ```
 Rollback scenario (no transaction provider, e.g. InMemory): pending tracked changes are cleared on `RollbackAsync()`.
 
-## When to Create a Custom Repo
-- Add domain-specific query helpers aggregated from multiple generic queries
-- Optimize frequently used patterns with compiled queries
-- Encapsulate raw SQL when needed
-- Implement provider-specific behaviors beyond EF (e.g., soft delete flags, multi-tenancy filtering)
+## When to Subclass Base Repo Implementations
+Do NOT subclass if the base implementations already cover your needs (generic CRUD + deferred persistence in a UoW).
+
+Subclass only when you need one of:
+- Domain-specific query helpers (aggregate common query shapes)
+- Performance optimizations (compiled queries, projection shortcuts, caching hooks)
+- Raw SQL / stored procedure encapsulation behind a safe API
+- Cross-cutting behaviors (soft delete, multi-tenancy, row-level security filters)
+- Extended auditing or policy enforcement before/after operations
+- Coordination across multiple DbContexts / databases behind a single facade
+
+If only one feature is needed occasionally, consider extension methods or a service layer first—subclassing should add clear, reusable value.
