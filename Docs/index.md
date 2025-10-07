@@ -14,6 +14,7 @@ High-level abstractions for data access that keep the domain/persistence boundar
 ```bash
 dotnet add package Corely.DataAccess
 ```
+See the Step-by-Step guide for a minimal walkthrough: [Minimal Setup](step-by-step-setup.md)
 
 Minimal (single DbContext, no custom subclasses):
 ```csharp
@@ -25,12 +26,24 @@ services.AddScoped<IUnitOfWorkProvider, EFUoWProvider>(); // optional but recomm
 ```
 Full / Custom (context-specific repo & UoW subclasses):
 ```csharp
+// IEFConfiguration can target InMemory / MySql / Postgres via provided demo configs or your own subclass
 services.AddSingleton<IEFConfiguration>(new InMemoryDemoConfiguration("custom-db"));
 services.AddScoped<MyDbContext>();
-// Custom repo + UoW subclasses
+
+// Custom repo + UoW subclasses (adds a seam for cross-cutting concerns: caching, policies, metrics, etc.)
 services.AddScoped(typeof(IReadonlyRepo<>), typeof(MyReadonlyRepo<>));
 services.AddScoped(typeof(IRepo<>), typeof(MyRepo<>));
 services.AddScoped<IUnitOfWorkProvider, MyUoWProvider>();
+```
+Example custom subclasses:
+```csharp
+public sealed class MyReadonlyRepo<TEntity>(ILogger<EFReadonlyRepo<TEntity>> logger, MyDbContext ctx)
+    : EFReadonlyRepo<TEntity>(logger, ctx) where TEntity : class { }
+
+public sealed class MyRepo<TEntity>(ILogger<EFRepo<TEntity>> logger, MyDbContext ctx)
+    : EFRepo<TEntity>(logger, ctx) where TEntity : class { }
+
+public sealed class MyUoWProvider(MyDbContext ctx) : EFUoWProvider(ctx) { }
 ```
 
 ## Key Concepts
@@ -44,6 +57,7 @@ services.AddScoped<IUnitOfWorkProvider, MyUoWProvider>();
 | Mock Repositories | In-memory implementations for fast tests without provider dependencies. |
 
 ## Documentation
+- [Step-by-Step Minimal Setup](step-by-step-setup.md)
 - [Configurations](configurations.md)
 - [Entity Configuration & Property Helpers](entity-configuration.md)
 - [Repositories](repositories.md)
