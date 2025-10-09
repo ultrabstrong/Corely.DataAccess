@@ -9,15 +9,15 @@ namespace Corely.DataAccess.UnitTests.EntityFramework.Repos;
 
 public class EFReadonlyRepoTests : ReadonlyRepoTestsBase
 {
-    private readonly DbContext _dbContext;
-    private readonly EFReadonlyRepo<EntityFixture> _efReadonlyRepo;
+    private readonly DbContextFixture _dbContext;
+    private readonly EFReadonlyRepo<DbContextFixture, EntityFixture> _efReadonlyRepo;
 
     public EFReadonlyRepoTests()
     {
         _dbContext = GetDbContext();
 
         _efReadonlyRepo = new(
-            Moq.Mock.Of<ILogger<EFRepo<EntityFixture>>>(),
+            Moq.Mock.Of<ILogger<EFReadonlyRepo<DbContextFixture, EntityFixture>>>(),
             _dbContext);
     }
 
@@ -40,9 +40,7 @@ public class EFReadonlyRepoTests : ReadonlyRepoTestsBase
         return dbContext;
     }
 
-    protected override IReadonlyRepo<EntityFixture> ReadonlyRepo
-        => _efReadonlyRepo;
+    protected override IReadonlyRepo<EntityFixture> ReadonlyRepo => _efReadonlyRepo;
 
-    protected override int FillRepoAndReturnId()
-        => _dbContext.Set<EntityFixture>().Skip(1).First().Id;
+    protected override int FillRepoAndReturnId() => _dbContext.Set<EntityFixture>().Skip(1).First().Id;
 }

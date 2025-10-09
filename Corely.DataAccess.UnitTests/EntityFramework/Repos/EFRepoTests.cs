@@ -10,8 +10,8 @@ namespace Corely.DataAccess.UnitTests.EntityFramework.Repos;
 
 public class EFRepoTests : RepoTestsBase
 {
-    private readonly EFRepo<EntityFixture> _efRepo;
-    private readonly DbContext _dbContext;
+    private readonly EFRepo<DbContextFixture, EntityFixture> _efRepo;
+    private readonly DbContextFixture _dbContext;
 
     private readonly EntityFixture _testEntity = new() { Id = 1 };
 
@@ -22,8 +22,8 @@ public class EFRepoTests : RepoTestsBase
                 .UseInMemoryDatabase(databaseName: new Fixture().Create<string>())
                 .Options);
 
-        _efRepo = new EFRepo<EntityFixture>(
-            Moq.Mock.Of<ILogger<EFRepo<EntityFixture>>>(),
+        _efRepo = new EFRepo<DbContextFixture, EntityFixture>(
+            Moq.Mock.Of<ILogger<EFRepo<DbContextFixture, EntityFixture>>>(),
             _dbContext);
     }
 

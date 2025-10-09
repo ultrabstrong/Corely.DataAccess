@@ -6,20 +6,23 @@ using System.Linq.Expressions;
 
 namespace Corely.DataAccess.EntityFramework.Repos;
 
-public class EFReadonlyRepo<TEntity>
-    : IReadonlyRepo<TEntity>
+// Context-qualified readonly repo (consolidated; replaces previous dynamic + single-context variants)
+internal class EFReadonlyRepo<TContext, TEntity> : IReadonlyRepo<TEntity>
+    where TContext : DbContext
     where TEntity : class
 {
-    protected readonly ILogger<EFReadonlyRepo<TEntity>> Logger;
+    protected readonly ILogger<EFReadonlyRepo<TContext, TEntity>> Logger;
+    protected readonly TContext DbContext;
     protected readonly DbSet<TEntity> DbSet;
 
     public EFReadonlyRepo(
-        ILogger<EFReadonlyRepo<TEntity>> logger,
-        DbContext context)
+        ILogger<EFReadonlyRepo<TContext, TEntity>> logger,
+        TContext context)
     {
         Logger = logger.ThrowIfNull(nameof(logger));
+        DbContext = context.ThrowIfNull(nameof(context));
         DbSet = context.Set<TEntity>().ThrowIfNull(nameof(context));
-        Logger.LogDebug("{RepoType} created for {EntityType}", GetType().Name.Split('`')[0], typeof(TEntity).Name);
+        Logger.LogTrace("{RepoType} created for {EntityType} on {ContextType}", GetType().Name.Split('`')[0], typeof(TEntity).Name, typeof(TContext).Name);
     }
 
     public virtual async Task<TEntity?> GetAsync(
@@ -30,34 +33,18 @@ public class EFReadonlyRepo<TEntity>
     {
         ArgumentNullException.ThrowIfNull(query);
         var queryable = DbSet.AsQueryable();
-
-        if (include != null)
-        {
-            queryable = include(queryable);
-        }
-
-        if (orderBy != null)
-        {
-            queryable = orderBy(queryable);
-        }
-
+        if (include != null) queryable = include(queryable);
+        if (orderBy != null) queryable = orderBy(queryable);
         return await queryable.FirstOrDefaultAsync(query, cancellationToken);
     }
 
     public virtual async Task<bool> AnyAsync(Expression<Func<TEntity, bool>> query, CancellationToken cancellationToken = default)
-    {
-        ArgumentNullException.ThrowIfNull(query);
-        return await DbSet.AnyAsync(query, cancellationToken);
-    }
+        => await DbSet.AnyAsync(query, cancellationToken);
 
     public virtual async Task<int> CountAsync(
         Expression<Func<TEntity, bool>>? query = null,
         CancellationToken cancellationToken = default)
-    {
-        return query == null
-            ? await DbSet.CountAsync(cancellationToken)
-            : await DbSet.CountAsync(query, cancellationToken);
-    }
+        => query == null ? await DbSet.CountAsync(cancellationToken) : await DbSet.CountAsync(query, cancellationToken);
 
     public virtual async Task<List<TEntity>> ListAsync(
         Expression<Func<TEntity, bool>>? query = null,
@@ -66,22 +53,9 @@ public class EFReadonlyRepo<TEntity>
         CancellationToken cancellationToken = default)
     {
         var queryable = DbSet.AsQueryable();
-
-        if (include != null)
-        {
-            queryable = include(queryable);
-        }
-
-        if (orderBy != null)
-        {
-            queryable = orderBy(queryable);
-        }
-
-        if (query != null)
-        {
-            queryable = queryable.Where(query);
-        }
-
+        if (include != null) queryable = include(queryable);
+        if (orderBy != null) queryable = orderBy(queryable);
+        if (query != null) queryable = queryable.Where(query);
         return await queryable.ToListAsync(cancellationToken);
     }
 }
