@@ -12,11 +12,14 @@ internal class Program
         var provider = ServiceRegistration.GetServiceProvider();
         await RepoExample(provider);
         await ReadonlyRepoExample(provider);
+        await MultipleServiceExample(provider);
         await UnitOfWorkExample(provider);
     }
 
     static async Task RepoExample(IServiceProvider provider)
     {
+        Console.WriteLine("Repo Example:");
+
         var repo = provider.GetRequiredService<IRepo<DemoEntity>>();
         if (!await repo.AnyAsync(e => e.Id > 0))
         {
@@ -39,6 +42,9 @@ internal class Program
 
     static async Task ReadonlyRepoExample(IServiceProvider provider)
     {
+        Console.WriteLine();
+        Console.WriteLine("Readonly Repo Example:");
+
         var readonlyRepo = provider.GetRequiredService<IReadonlyRepo<DemoEntity>>();
         var list = await readonlyRepo.ListAsync();
         Console.WriteLine($"Entities: {string.Join(", ", list.Select(e => e.Name))}");
@@ -53,6 +59,20 @@ internal class Program
 
         var entity = await readonlyRepo.GetAsync(e => e.Name.Contains("Beta"));
         Console.WriteLine($"Retrieved entity: {entity?.Name}");
+    }
+
+    static async Task MultipleServiceExample(IServiceProvider provider)
+    {
+        Console.WriteLine();
+        Console.WriteLine("Multiple Service Example:");
+
+        var service1 = provider.GetRequiredService<DemoService>();
+        var entities1 = await service1.GetAllAsync();
+        Console.WriteLine($"Service1 Entities: {string.Join(", ", entities1.Select(e => e.Name))}");
+
+        var service2 = provider.GetRequiredService<DemoService2>();
+        var entities2 = await service2.GetAllAsync();
+        Console.WriteLine($"Service2 Entities: {string.Join(", ", entities2.Select(e => e.Name))}");
     }
 
     static async Task UnitOfWorkExample(IServiceProvider provider)
