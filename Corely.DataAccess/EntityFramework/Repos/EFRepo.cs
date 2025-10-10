@@ -1,43 +1,45 @@
-﻿using Corely.Common.Extensions;
-using Corely.DataAccess.Interfaces.Entities;
+﻿using Corely.DataAccess.Interfaces.Entities;
 using Corely.DataAccess.Interfaces.Repos;
+using Corely.DataAccess.Interfaces.UnitOfWork;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 
 namespace Corely.DataAccess.EntityFramework.Repos;
 
-// Context-qualified full repo (CRUD) building on EFReadonlyRepo<TContext,TEntity>
-internal class EFRepo<TContext, TEntity> : EFReadonlyRepo<TContext, TEntity>, IRepo<TEntity>
+internal sealed class EFRepo<TContext, TEntity> : EFReadonlyRepo<TContext, TEntity>, IRepo<TEntity>
     where TContext : DbContext
     where TEntity : class
 {
-    protected readonly TContext DbContext;
+    private readonly IUnitOfWorkScopeAccessor _scope;
 
     public EFRepo(
         ILogger<EFRepo<TContext, TEntity>> logger,
-        TContext dbContext)
+        TContext dbContext,
+        IUnitOfWorkScopeAccessor scope)
         : base(logger, dbContext)
     {
-        DbContext = dbContext.ThrowIfNull(nameof(dbContext));
+        _scope = scope;
         Logger.LogTrace("{RepoType} created for {EntityType} on {ContextType}", GetType().Name.Split('`')[0], typeof(TEntity).Name, typeof(TContext).Name);
     }
 
-    private bool ShouldSaveChanges() => !EFUoWScope.IsActive && DbContext.ChangeTracker.HasChanges();
+    private bool ShouldSaveChanges() => !_scope.IsActive && DbContext.ChangeTracker.HasChanges();
 
-    public virtual async Task<TEntity> CreateAsync(TEntity entity, CancellationToken cancellationToken = default)
+    public async Task<TEntity> CreateAsync(TEntity entity, CancellationToken cancellationToken = default)
     {
         var newEntity = await DbSet.AddAsync(entity, cancellationToken);
-        if (ShouldSaveChanges()) await DbContext.SaveChangesAsync(cancellationToken);
+        if (ShouldSaveChanges())
+            await DbContext.SaveChangesAsync(cancellationToken);
         return newEntity.Entity;
     }
 
-    public virtual async Task CreateAsync(IEnumerable<TEntity> entities, CancellationToken cancellationToken = default)
+    public async Task CreateAsync(IEnumerable<TEntity> entities, CancellationToken cancellationToken = default)
     {
         await DbSet.AddRangeAsync(entities, cancellationToken);
-        if (ShouldSaveChanges()) await DbContext.SaveChangesAsync(cancellationToken);
+        if (ShouldSaveChanges())
+            await DbContext.SaveChangesAsync(cancellationToken);
     }
 
-    public virtual async Task UpdateAsync(TEntity entity, CancellationToken cancellationToken = default)
+    public async Task UpdateAsync(TEntity entity, CancellationToken cancellationToken = default)
     {
         if (typeof(IHasModifiedUtc).IsAssignableFrom(typeof(TEntity)))
             ((IHasModifiedUtc)entity).ModifiedUtc = DateTime.UtcNow;
@@ -56,7 +58,8 @@ internal class EFRepo<TContext, TEntity> : EFReadonlyRepo<TContext, TEntity>, IR
                 key.Properties.All(pkProp =>
                 {
                     var clrProp = typeof(TEntity).GetProperty(pkProp.Name);
-                    if (clrProp == null) return false;
+                    if (clrProp == null)
+                        return false;
                     var localVal = clrProp.GetValue(local);
                     var newVal = clrProp.GetValue(entity);
                     return Equals(localVal, newVal);
@@ -71,12 +74,14 @@ internal class EFRepo<TContext, TEntity> : EFReadonlyRepo<TContext, TEntity>, IR
             }
         }
 
-        if (ShouldSaveChanges()) await DbContext.SaveChangesAsync(cancellationToken);
+        if (ShouldSaveChanges())
+            await DbContext.SaveChangesAsync(cancellationToken);
     }
 
-    public virtual async Task DeleteAsync(TEntity entity, CancellationToken cancellationToken = default)
+    public async Task DeleteAsync(TEntity entity, CancellationToken cancellationToken = default)
     {
         DbSet.Remove(entity);
-        if (ShouldSaveChanges()) await DbContext.SaveChangesAsync(cancellationToken);
+        if (ShouldSaveChanges())
+            await DbContext.SaveChangesAsync(cancellationToken);
     }
 }

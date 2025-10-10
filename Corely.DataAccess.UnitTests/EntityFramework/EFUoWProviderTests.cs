@@ -1,5 +1,6 @@
 ﻿using Corely.DataAccess.EntityFramework;
 using Corely.DataAccess.UnitTests.Fixtures;
+using Corely.DataAccess.UnitOfWork;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Storage;
@@ -16,7 +17,7 @@ public class EFUoWProviderTests
     public EFUoWProviderTests()
     {
         _iamDbContextMock = GetMockIAMDbContext();
-        _efUoWProvider = new(_iamDbContextMock.Object);
+        _efUoWProvider = new(_iamDbContextMock.Object, new DefaultUnitOfWorkScopeAccessor());
     }
 
     private Mock<DbContextFixture> GetMockIAMDbContext()
@@ -90,10 +91,10 @@ public class EFUoWProviderTests
             .UseInMemoryDatabase(Guid.NewGuid().ToString())
             .Options;
         var realContext = new DbContextFixture(inMemoryOptions);
-        var provider = new EFUoWProvider(realContext);
+        var provider = new EFUoWProvider(realContext, new DefaultUnitOfWorkScopeAccessor());
 
         await provider.BeginAsync();
-        realContext.Add(new EntityFixture());
+        realContext.Add(new Fixtures.EntityFixture());
         Assert.True(realContext.ChangeTracker.Entries().Any());
 
         await provider.RollbackAsync();

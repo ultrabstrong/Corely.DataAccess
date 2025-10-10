@@ -2,6 +2,8 @@
 using Corely.DataAccess.EntityFramework;
 using Corely.DataAccess.EntityFramework.Repos;
 using Corely.DataAccess.Interfaces.Repos;
+using Corely.DataAccess.Interfaces.UnitOfWork;
+using Corely.DataAccess.UnitOfWork;
 using Corely.DataAccess.UnitTests.Fixtures;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
@@ -12,19 +14,23 @@ public class EFRepoTests : RepoTestsBase
 {
     private readonly EFRepo<DbContextFixture, EntityFixture> _efRepo;
     private readonly DbContextFixture _dbContext;
-
+    private readonly string _dbName;
+    private readonly IUnitOfWorkScopeAccessor _scope;
     private readonly EntityFixture _testEntity = new() { Id = 1 };
 
     public EFRepoTests()
     {
+        _dbName = new Fixture().Create<string>();
         _dbContext = new DbContextFixture(
             new DbContextOptionsBuilder<DbContextFixture>()
-                .UseInMemoryDatabase(databaseName: new Fixture().Create<string>())
+                .UseInMemoryDatabase(databaseName: _dbName)
                 .Options);
+        _scope = new DefaultUnitOfWorkScopeAccessor();
 
         _efRepo = new EFRepo<DbContextFixture, EntityFixture>(
             Moq.Mock.Of<ILogger<EFRepo<DbContextFixture, EntityFixture>>>(),
-            _dbContext);
+            _dbContext,
+            _scope);
     }
 
     protected override IRepo<EntityFixture> Repo => _efRepo;
@@ -41,7 +47,7 @@ public class EFRepoTests : RepoTestsBase
     public async Task GetAsync_ReturnsEntity()
     {
         await _efRepo.CreateAsync(_testEntity);
-        var entity = await _efRepo.GetAsync(e => e.Id == _testEntity.Id);
+        var entity = await Repo.GetAsync(e => e.Id == _testEntity.Id);
         Assert.Equal(_testEntity, entity);
     }
 
@@ -56,15 +62,10 @@ public class EFRepoTests : RepoTestsBase
 
         var updatedEntity = _dbContext.Set<EntityFixture>().Find(entity.Id);
         Assert.NotNull(updatedEntity);
-
         Assert.NotEqual(_testEntity, updatedEntity);
         Assert.Equal(entity, updatedEntity);
-
         Assert.NotNull(updatedEntity.ModifiedUtc);
-        Assert.InRange(
-            updatedEntity.ModifiedUtc.Value,
-            DateTime.UtcNow.AddSeconds(-2),
-            DateTime.UtcNow);
+        Assert.InRange(updatedEntity.ModifiedUtc.Value, DateTime.UtcNow.AddSeconds(-2), DateTime.UtcNow);
     }
 
     [Fact]
@@ -72,23 +73,15 @@ public class EFRepoTests : RepoTestsBase
     {
         await _efRepo.CreateAsync(_testEntity);
         var untrackedSetupEntity = new EntityFixture { Id = _testEntity.Id };
-
         await _efRepo.UpdateAsync(untrackedSetupEntity);
-
-        // UpdateAsync automatically updates the ModifiedUtc
-        // It should find and update ModifiedUtc of the original entity
-        // This has the added benefit of testing the ModifiedUtc update
         Assert.NotNull(_testEntity.ModifiedUtc);
-        Assert.InRange(
-            _testEntity.ModifiedUtc.Value,
-            DateTime.UtcNow.AddSeconds(-2),
-            DateTime.UtcNow);
+        Assert.InRange(_testEntity.ModifiedUtc.Value, DateTime.UtcNow.AddSeconds(-2), DateTime.UtcNow);
     }
 
     [Fact]
     public async Task DeferredPersistence_InsideUnitOfWork_DoesNotSaveUntilCommit()
     {
-        var uow = new EFUoWProvider(_dbContext);
+        var uow = new EFUoWProvider(_dbContext, _scope);
         await uow.BeginAsync();
 
         var e1 = new EntityFixture { Id = 200 };
@@ -96,31 +89,37 @@ public class EFRepoTests : RepoTestsBase
         await _efRepo.CreateAsync(e1);
         await _efRepo.CreateAsync(e2);
 
-        // Not saved yet (ChangeTracker has Added entries but db set Find returns null)
-        Assert.Null(_dbContext.Set<EntityFixture>().Find(200));
-        Assert.Null(_dbContext.Set<EntityFixture>().Find(201));
+        using var readContext = new DbContextFixture(
+            new DbContextOptionsBuilder<DbContextFixture>()
+                .UseInMemoryDatabase(_dbName)
+                .Options);
+        Assert.Null(readContext.Set<EntityFixture>().Find(200));
+        Assert.Null(readContext.Set<EntityFixture>().Find(201));
 
         await uow.CommitAsync();
 
-        Assert.NotNull(_dbContext.Set<EntityFixture>().Find(200));
-        Assert.NotNull(_dbContext.Set<EntityFixture>().Find(201));
+        Assert.NotNull(readContext.Set<EntityFixture>().Find(200));
+        Assert.NotNull(readContext.Set<EntityFixture>().Find(201));
     }
 
     [Fact]
     public async Task Rollback_ClearsPendingChanges_ForDeferredOps()
     {
-        var uow = new EFUoWProvider(_dbContext);
+        var uow = new EFUoWProvider(_dbContext, _scope);
         await uow.BeginAsync();
 
         var e1 = new EntityFixture { Id = 300 };
         await _efRepo.CreateAsync(e1);
 
-        Assert.Null(_dbContext.Set<EntityFixture>().Find(300));
+        using var readContext = new DbContextFixture(
+            new DbContextOptionsBuilder<DbContextFixture>()
+                .UseInMemoryDatabase(_dbName)
+                .Options);
+        Assert.Null(readContext.Set<EntityFixture>().Find(300));
 
         await uow.RollbackAsync();
 
-        // After rollback, entity should not be persisted and tracker cleared
-        Assert.Null(_dbContext.Set<EntityFixture>().Find(300));
+        Assert.Null(readContext.Set<EntityFixture>().Find(300));
         Assert.DoesNotContain(_dbContext.ChangeTracker.Entries(), e => e.Entity is EntityFixture ef && ef.Id == 300);
     }
 

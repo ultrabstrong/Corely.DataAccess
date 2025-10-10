@@ -16,23 +16,6 @@ public abstract class ReadonlyRepoTestsBase
     protected abstract int FillRepoAndReturnId();
 
     [Fact]
-    public void AllRepoMethodsAreVirtual()
-    {
-        var readonlyRepoType = ReadonlyRepo.GetType();
-
-        var methods = readonlyRepoType.GetMethods(
-            BindingFlags.Public |
-            BindingFlags.NonPublic |
-            BindingFlags.Instance |
-            BindingFlags.DeclaredOnly);
-
-        foreach (var method in methods)
-        {
-            Assert.True(method.IsVirtual, $"Method {method.Name} is not marked virtual");
-        }
-    }
-
-    [Fact]
     public async Task GetAsync_ReturnsEntity_WIthIdLookup()
     {
         var id = FillRepoAndReturnId();

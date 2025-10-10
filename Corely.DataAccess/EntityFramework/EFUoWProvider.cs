@@ -5,24 +5,25 @@ using Microsoft.EntityFrameworkCore.Storage;
 
 namespace Corely.DataAccess.EntityFramework;
 
-public class EFUoWProvider : DisposeBase, IUnitOfWorkProvider
+internal class EFUoWProvider : DisposeBase, IUnitOfWorkProvider
 {
     private readonly DbContext _dbContext;
     private readonly bool _supportTransactions;
+    private readonly IUnitOfWorkScopeAccessor _scope;
     private IDbContextTransaction? _transaction;
 
-    public EFUoWProvider(DbContext dbContext)
+    public EFUoWProvider(DbContext dbContext, IUnitOfWorkScopeAccessor scope)
     {
         _dbContext = dbContext;
-        _supportTransactions = dbContext.Database.ProviderName
-            != "Microsoft.EntityFrameworkCore.InMemory"; // no transactional support
+        _scope = scope;
+        _supportTransactions = dbContext.Database.ProviderName != "Microsoft.EntityFrameworkCore.InMemory";
     }
 
     public async Task BeginAsync(CancellationToken cancellationToken = default)
     {
-        if (!EFUoWScope.IsActive)
+        if (!_scope.IsActive)
         {
-            EFUoWScope.Begin();
+            _scope.IsActive = true;
         }
         if (_transaction == null && _supportTransactions)
         {
@@ -34,7 +35,7 @@ public class EFUoWProvider : DisposeBase, IUnitOfWorkProvider
     {
         try
         {
-            if (EFUoWScope.IsActive)
+            if (_scope.IsActive || _transaction != null)
             {
                 await _dbContext.SaveChangesAsync(cancellationToken);
             }
@@ -47,9 +48,9 @@ public class EFUoWProvider : DisposeBase, IUnitOfWorkProvider
         }
         finally
         {
-            if (EFUoWScope.IsActive)
+            if (_scope.IsActive)
             {
-                EFUoWScope.End();
+                _scope.IsActive = false;
             }
         }
     }
@@ -64,16 +65,16 @@ public class EFUoWProvider : DisposeBase, IUnitOfWorkProvider
                 await _transaction.DisposeAsync();
                 _transaction = null;
             }
-            else if (EFUoWScope.IsActive)
+            else
             {
                 _dbContext.ChangeTracker.Clear();
             }
         }
         finally
         {
-            if (EFUoWScope.IsActive)
+            if (_scope.IsActive)
             {
-                EFUoWScope.End();
+                _scope.IsActive = false;
             }
         }
     }
@@ -82,7 +83,7 @@ public class EFUoWProvider : DisposeBase, IUnitOfWorkProvider
     {
         _transaction?.Dispose();
         _dbContext?.Dispose();
-        EFUoWScope.End();
+        _scope.IsActive = false;
     }
 
     protected async override ValueTask DisposeAsyncCore()
@@ -95,6 +96,6 @@ public class EFUoWProvider : DisposeBase, IUnitOfWorkProvider
         {
             await _dbContext.DisposeAsync();
         }
-        EFUoWScope.End();
+        _scope.IsActive = false;
     }
 }

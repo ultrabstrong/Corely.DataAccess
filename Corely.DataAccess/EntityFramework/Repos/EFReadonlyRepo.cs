@@ -25,7 +25,7 @@ internal class EFReadonlyRepo<TContext, TEntity> : IReadonlyRepo<TEntity>
         Logger.LogTrace("{RepoType} created for {EntityType} on {ContextType}", GetType().Name.Split('`')[0], typeof(TEntity).Name, typeof(TContext).Name);
     }
 
-    public virtual async Task<TEntity?> GetAsync(
+    public Task<TEntity?> GetAsync(
        Expression<Func<TEntity, bool>> query,
        Func<IQueryable<TEntity>, IOrderedQueryable<TEntity>>? orderBy = null,
        Func<IQueryable<TEntity>, IQueryable<TEntity>>? include = null,
@@ -35,18 +35,18 @@ internal class EFReadonlyRepo<TContext, TEntity> : IReadonlyRepo<TEntity>
         var queryable = DbSet.AsQueryable();
         if (include != null) queryable = include(queryable);
         if (orderBy != null) queryable = orderBy(queryable);
-        return await queryable.FirstOrDefaultAsync(query, cancellationToken);
+        return queryable.FirstOrDefaultAsync(query, cancellationToken);
     }
 
-    public virtual async Task<bool> AnyAsync(Expression<Func<TEntity, bool>> query, CancellationToken cancellationToken = default)
-        => await DbSet.AnyAsync(query, cancellationToken);
+    public Task<bool> AnyAsync(Expression<Func<TEntity, bool>> query, CancellationToken cancellationToken = default)
+        => DbSet.AnyAsync(query, cancellationToken);
 
-    public virtual async Task<int> CountAsync(
+    public Task<int> CountAsync(
         Expression<Func<TEntity, bool>>? query = null,
         CancellationToken cancellationToken = default)
-        => query == null ? await DbSet.CountAsync(cancellationToken) : await DbSet.CountAsync(query, cancellationToken);
+        => query == null ? DbSet.CountAsync(cancellationToken) : DbSet.CountAsync(query, cancellationToken);
 
-    public virtual async Task<List<TEntity>> ListAsync(
+    public Task<List<TEntity>> ListAsync(
         Expression<Func<TEntity, bool>>? query = null,
         Func<IQueryable<TEntity>, IOrderedQueryable<TEntity>>? orderBy = null,
         Func<IQueryable<TEntity>, IQueryable<TEntity>>? include = null,
@@ -56,6 +56,6 @@ internal class EFReadonlyRepo<TContext, TEntity> : IReadonlyRepo<TEntity>
         if (include != null) queryable = include(queryable);
         if (orderBy != null) queryable = orderBy(queryable);
         if (query != null) queryable = queryable.Where(query);
-        return await queryable.ToListAsync(cancellationToken);
+        return queryable.ToListAsync(cancellationToken);
     }
 }
