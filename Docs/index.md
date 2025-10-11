@@ -47,6 +47,7 @@ await uow.CommitAsync();
 - Mock repositories/UoW can be swapped in for fast, provider‑free unit tests.
 
 ## Documentation
+- [Step-by-Step Setup](step-by-step-setup.md)
 - [Configurations](configurations.md)
 - [Entity Configuration & Property Helpers](entity-configuration.md)
 - [Repositories](repositories.md)

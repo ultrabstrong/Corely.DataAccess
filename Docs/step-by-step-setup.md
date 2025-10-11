@@ -1,14 +1,17 @@
-# Step-by-Step Setup (Minimal -> Custom)
+ï»¿# Step-by-Step Setup
 
-This guide walks you from an empty project to a working data access setup using Corely.DataAccess.
+This guide shows how to get started using Corely.DataAccess.
 
-## 1. Install NuGet Packages
+## 1) Install NuGet Packages
 Core library (always):
 ```bash
 dotnet add package Corely.DataAccess
 ```
 EF Core provider packages (choose what you need):
 ```bash
+# SQLite (demo-friendly)
+dotnet add package Microsoft.EntityFrameworkCore.Sqlite
+
 # In-Memory (tests / demos)
 dotnet add package Microsoft.EntityFrameworkCore.InMemory
 
@@ -19,173 +22,151 @@ dotnet add package Pomelo.EntityFrameworkCore.MySql
 dotnet add package Npgsql.EntityFrameworkCore.PostgreSQL
 ```
 
-## 2. Pick / Create an IEFConfiguration
-You need a class implementing `IEFConfiguration` (inherit from the appropriate base):
+## 2) Pick / Create an IEFConfiguration
+Provide a class implementing `IEFConfiguration` (inherit from the appropriate base):
+- `EFSqliteConfigurationBase`
 - `EFInMemoryConfigurationBase`
 - `EFMySqlConfigurationBase`
 - `EFPostgresConfigurationBase`
 
-Minimal In-Memory example (adapted from demo):
+SQLite example:
 ```csharp
 using Corely.DataAccess.EntityFramework.Configurations;
 using Microsoft.EntityFrameworkCore;
 
-public sealed class InMemoryAppConfiguration(string dbName) : EFInMemoryConfigurationBase
+public sealed class SqliteAppConfiguration(string connectionString) : EFSqliteConfigurationBase(connectionString)
 {
-    private readonly string _dbName = dbName;
-    public override void Configure(DbContextOptionsBuilder optionsBuilder)
-        => optionsBuilder.UseInMemoryDatabase(_dbName);
+    public override void Configure(DbContextOptionsBuilder b)
+        => b.UseSqlite(connectionString);
 }
 ```
-(MySql/Postgres versions just call `UseMySql(...)` / `UseNpgsql(...)` respectively inside `Configure`).
-
-## 3. Create an Entity
-Create your POCO(s). Optionally implement the timestamp / id interfaces to leverage built-in helpers.
+In-memory example:
 ```csharp
-using Corely.DataAccess.Interfaces.Entities; // optional interfaces
+public sealed class InMemoryAppConfiguration(string dbName) : EFInMemoryConfigurationBase
+{
+    public override void Configure(DbContextOptionsBuilder b)
+        => b.UseInMemoryDatabase(dbName);
+}
+```
+Learn more in the [Configurations](configurations.md) docs.
+
+## 3) Create an Entity
+Optionally implement timestamp/id interfaces for helpers (CreatedUtc/ModifiedUtc, Id key):
+```csharp
+using Corely.DataAccess.Interfaces.Entities;
 
 public class TodoItem : IHasIdPk<int>, IHasCreatedUtc, IHasModifiedUtc
 {
     public int Id { get; set; }
     public string Title { get; set; } = string.Empty;
-    public DateTime? CreatedUtc { get; set; }
+    public DateTime CreatedUtc { get; set; }
     public DateTime? ModifiedUtc { get; set; }
 }
 ```
-Interfaces are optional – they just enable automatic configuration or timestamp behavior.
+Learn more in the [Entity Configuration](entity-configuration.md) docs.
 
-## 4. (Optional) Entity Configuration
-If you want auditing helpers (`CreatedUtc`, `ModifiedUtc`) or automatic table naming, create a configuration (supply `IEFDbTypes` in ctor):
+## 4) (Optional) Entity Configuration
+To enable audit helpers and conventions, derive from `EntityConfigurationBase<>`:
 ```csharp
 using Corely.DataAccess.EntityFramework;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
-public sealed class TodoItemConfiguration(IEFDbTypes dbTypes) : EntityConfigurationBase<TodoItem, int>(dbTypes)
+public sealed class TodoItemConfiguration(IEFDbTypes db) : EntityConfigurationBase<TodoItem, int>(db)
 {
-    protected override void ConfigureInternal(EntityTypeBuilder<TodoItem> builder)
-    {
-        builder.Property(e => e.Title).IsRequired().HasMaxLength(200);
-    }
+    protected override void ConfigureInternal(EntityTypeBuilder<TodoItem> b)
+        => b.Property(e => e.Title).IsRequired().HasMaxLength(200);
 }
 ```
-If you skip this, EF will infer a basic model – you just won’t get the provided audit column helpers.
 
-## 5. Create Your DbContext
-Provider-agnostic: only depends on `IEFConfiguration` and dynamically discovers any `EntityConfigurationBase<>` descendants.
+## 5) Create Your DbContext
+Provider-agnostic: depends on `IEFConfiguration` and discovers configurations.
 ```csharp
-using Corely.DataAccess.EntityFramework; // EntityConfigurationBase<> 
-using Corely.DataAccess.EntityFramework.Configurations; // IEFConfiguration
+using Corely.DataAccess.EntityFramework;
+using Corely.DataAccess.EntityFramework.Configurations;
 using Microsoft.EntityFrameworkCore;
 
 public sealed class AppDbContext : DbContext
 {
-    private readonly IEFConfiguration _efConfiguration;
+    private readonly IEFConfiguration _ef;
+    public AppDbContext(IEFConfiguration ef) { _ef = ef; }
+    public AppDbContext(DbContextOptions<AppDbContext> opts, IEFConfiguration ef) : base(opts) { _ef = ef; }
 
-    public AppDbContext(IEFConfiguration efConfiguration)
-    {
-        _efConfiguration = efConfiguration;
-    }
-
-    public AppDbContext(DbContextOptions<AppDbContext> options, IEFConfiguration efConfiguration) : base(options)
-    {
-        _efConfiguration = efConfiguration;
-    }
-
-    // DbSets
     public DbSet<TodoItem> TodoItems => Set<TodoItem>();
 
-    protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
+    protected override void OnConfiguring(DbContextOptionsBuilder b)
     {
-        if (!optionsBuilder.IsConfigured)
-        {
-            _efConfiguration.Configure(optionsBuilder);
-        }
+        if (!b.IsConfigured) _ef.Configure(b);
     }
 
-    protected override void OnModelCreating(ModelBuilder modelBuilder)
+    protected override void OnModelCreating(ModelBuilder mb)
     {
-        var configurationType = typeof(EntityConfigurationBase<>);
-        var configurations = GetType().Assembly.GetTypes()
-            .Where(t => t.IsClass && !t.IsAbstract && t.BaseType != null
-                        && t.BaseType.IsGenericType
-                        && t.BaseType.GetGenericTypeDefinition() == configurationType);
-
-        foreach (var config in configurations)
+        var cfgType = typeof(EntityConfigurationBase<>);
+        var cfgs = GetType().Assembly.GetTypes()
+            .Where(t => t.IsClass && !t.IsAbstract && t.BaseType?.IsGenericType == true && t.BaseType.GetGenericTypeDefinition() == cfgType);
+        foreach (var t in cfgs)
         {
-            var instance = Activator.CreateInstance(config, _efConfiguration.GetDbTypes());
-            modelBuilder.ApplyConfiguration((dynamic)instance!);
+            var cfg = Activator.CreateInstance(t, _ef.GetDbTypes());
+            mb.ApplyConfiguration((dynamic)cfg!);
         }
     }
 }
 ```
 
-## 6. Register Minimal Services (DI)
+## 6) Register Services (DI)
+Use the helper to wire repositories and UoW. Also register a provider configuration and your DbContext(s).
 ```csharp
-using Corely.DataAccess.EntityFramework.Configurations;
-using Corely.DataAccess.EntityFramework.Repos;
-using Corely.DataAccess.EntityFramework; // EFUoWProvider
-using Corely.DataAccess.Interfaces.Repos;
-using Corely.DataAccess.Interfaces.UnitOfWork;
-
 var services = new ServiceCollection();
-services.AddSingleton<IEFConfiguration>(new InMemoryAppConfiguration("app-db"));
-services.AddScoped<AppDbContext>();
-services.AddScoped(typeof(IReadonlyRepo<>), typeof(EFReadonlyRepo<>) );
-services.AddScoped(typeof(IRepo<>), typeof(EFRepo<>));
-services.AddScoped<IUnitOfWorkProvider, EFUoWProvider>(); // Optional but recommended
-var provider = services.BuildServiceProvider();
+services.AddSingleton<IEFConfiguration>(new SqliteAppConfiguration("Data Source=:memory:"));
+services.AddDbContext<AppDbContext>();
+
+// Repos + UoW (standard path)
+services.RegisterEntityFrameworkReposAndUoW();
+
+// For providerâ€‘free unit tests, you can instead do:
+// services.RegisterMockReposAndUoW();
 ```
 
-## 7. Use a Repository
+## 7) Use a Repository
 ```csharp
-var repo = provider.GetRequiredService<IRepo<TodoItem>>();
+var sp = services.BuildServiceProvider();
+var repo = sp.GetRequiredService<IRepo<TodoItem>>();
 if (!await repo.AnyAsync(t => t.Id > 0))
 {
     await repo.CreateAsync(new TodoItem { Id = 1, Title = "First" });
 }
 var all = await repo.ListAsync();
 ```
+Learn more in the [Repositories](repositories.md) docs.
 
-## 8. (Optional) Unit of Work Scope
+## 8) Optional: Unit of Work
 ```csharp
-var uow = provider.GetRequiredService<IUnitOfWorkProvider>();
+var uow = sp.GetRequiredService<IUnitOfWorkProvider>();
 await uow.BeginAsync();
-await repo.CreateAsync(new TodoItem { Id = 2, Title = "Batch" }); // not saved yet
-await uow.CommitAsync(); // persists
+try
+{
+    var uowRepo = uow.GetRepository<TodoItem>(); // enlist current scoped instance
+    await uowRepo.CreateAsync(new TodoItem { Id = 2, Title = "Batch" });
+    await uow.CommitAsync();
+}
+catch
+{
+    await uow.RollbackAsync();
+    throw;
+}
 ```
+Learn more in the [Unit of Work](unit-of-work.md) docs.
 
-## 9. Switching Providers Later
+## 9) Switching Providers Later
 Only swap the `IEFConfiguration` registration:
 ```csharp
-// MySQL
-services.AddSingleton<IEFConfiguration>(new MySqlAppConfiguration(myConnectionString));
-// PostgreSQL
-services.AddSingleton<IEFConfiguration>(new PostgresAppConfiguration(pgConnection));
+// SQLite -> InMemory
+services.AddSingleton<IEFConfiguration>(new InMemoryAppConfiguration("app-db"));
 ```
-Your `DbContext`, entities, and repositories remain unchanged.
+Your `DbContext`, entities, and repository code remain unchanged.
 
-## 10. Going Further (Customization)
-Subclass repos for context-specific behavior:
-```csharp
-public sealed class AppReadonlyRepo<TEntity>(ILogger<EFReadonlyRepo<TEntity>> logger, AppDbContext ctx)
-    : EFReadonlyRepo<TEntity>(logger, ctx) where TEntity : class { }
-
-public sealed class AppRepo<TEntity>(ILogger<EFRepo<TEntity>> logger, AppDbContext ctx)
-    : EFRepo<TEntity>(logger, ctx) where TEntity : class { }
-```
-Then register those instead of the generic base types.
-
-## Summary
-You now have:
-1. Provider abstraction via `IEFConfiguration`
-2. A provider-agnostic `DbContext`
-3. Optional entity configurations with auditing helpers
-4. Generic repositories + optional Unit of Work
-5. Easy provider switching (swap one registration)
-
-Move to the other docs for deeper topics:
-- configurations.md
-- entity-configuration.md
-- repositories.md
-- unit-of-work.md
-- mock-repositories.md
+## 10) Where to next?
+- [Configurations](configurations.md)
+- [Entity Configuration](entity-configuration.md)
+- [Repositories](repositories.md)
+- [Unit of Work](unit-of-work.md)
+- [Mock Repositories](mock-repositories.md)
