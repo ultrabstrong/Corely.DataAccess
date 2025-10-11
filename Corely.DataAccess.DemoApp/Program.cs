@@ -80,36 +80,34 @@ internal class Program
         Console.WriteLine();
         Console.WriteLine("Unit of Work Example:");
 
-        var unscopedRepo = provider.GetRequiredService<IRepo<DemoEntity>>();
+        var preUoWRepo = provider.GetRequiredService<IRepo<DemoEntity>>();
 
         var uowProvider = provider.GetRequiredService<IUnitOfWorkProvider>();
-        bool uowSucceeded = false;
         try
         {
             await uowProvider.BeginAsync();
 
             // Note: the UoW provider supports repos from multiple contexts
             // if the underlying database supports nested transactions.
-            var scopedRepo = uowProvider.GetRepository<DemoEntity>();
-            await scopedRepo.CreateAsync(new DemoEntity { Id = 4, Name = "Delta" });
+            var postUoWRepo = uowProvider.GetRepository<DemoEntity>();
+            await postUoWRepo.CreateAsync(new DemoEntity { Id = 4, Name = "PostUoW" });
 
-            var entitiesBeforeCommit = await unscopedRepo.ListAsync();
+            // Note : changes made via pre-UoW repo are also included in the UoW transaction
+            await preUoWRepo.CreateAsync(new DemoEntity { Id = 5, Name = "PreUoW" });
+
+            var entitiesBeforeCommit = await preUoWRepo.ListAsync();
             Console.WriteLine(
                 $"Entities from Unscoped Repo before UoW commit: {string.Join(", ", entitiesBeforeCommit.Select(e => e.Name))}"
             );
-
+            //throw new Exception(); // uncomment to throw and see rollback functionality
             await uowProvider.CommitAsync();
-            uowSucceeded = true;
         }
-        finally
+        catch
         {
-            if (!uowSucceeded)
-            {
-                await uowProvider.RollbackAsync();
-            }
+            await uowProvider.RollbackAsync();
         }
 
-        var entitiesAfterCommit = await unscopedRepo.ListAsync();
+        var entitiesAfterCommit = await preUoWRepo.ListAsync();
         Console.WriteLine(
             $"Entities from Unscoped Repo after UoW commit: {string.Join(", ", entitiesAfterCommit.Select(e => e.Name))}"
         );

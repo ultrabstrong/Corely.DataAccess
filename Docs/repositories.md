@@ -1,8 +1,6 @@
 # Repositories
 
-> For concrete examples of registration and usage (CRUD + querying), inspect `Corely.DataAccess.Demo` and `Corely.DataAccess.DemoApp` where both simple and generic registrations are shown.
-
-Generic repository abstractions simplify common EF Core data access patterns while remaining extensible.
+Generic repository abstractions simplify common data access patterns while remaining extensible.
 
 ## Interfaces
 ```csharp
@@ -23,31 +21,29 @@ public interface IRepo<TEntity> : IReadonlyRepo<TEntity>
 }
 ```
 
-## Base Implementations
-| Class | Purpose |
-|-------|---------|
-| EFReadonlyRepo<TEntity> | Query only operations (Get, Any, Count, List with include & order) |
-| EFRepo<TEntity> | Adds Create / Update / Delete, ModifiedUtc management, UoW-aware deferred persistence |
+## Registration
+Use the provided helper to wire repositories and the unit of work:
+```csharp
+services.RegisterEntityFrameworkReposAndUoW();
+```
+Requirements:
+- Register each DbContext in DI (AddDbContext<...>).
+- Register a single IEFConfiguration for your contexts (see [Configurations](configurations.md)).
 
-## Registration Patterns
-Open generics:
+Mock providers for unit tests:
 ```csharp
-services.AddScoped(typeof(IReadonlyRepo<>), typeof(EFReadonlyRepo<>));
-services.AddScoped(typeof(IRepo<>), typeof(EFRepo<>));
+services.RegisterMockReposAndUoW();
 ```
-Context-specific wrappers (Demo):
-```csharp
-public sealed class DemoRepo<T> : EFRepo<T> where T : class
-{
-    public DemoRepo(ILogger<EFRepo<T>> logger, DemoDbContext ctx) : base(logger, ctx) {}
-}
-```
+
+## Behavior
+- For EF, repositories automatically resolve and use the appropriate DbContext for each entity at runtime. If none or multiple contexts match, an error is thrown.
+- All write operations participate in an active Unit of Work when one is begun; otherwise changes are saved immediately.
 
 ## Query Customization
-Each method supports:
-- include: `Func<IQueryable<TEntity>, IQueryable<TEntity>>`
-- orderBy: `Func<IQueryable<TEntity>, IOrderedQueryable<TEntity>>`
-- predicate (for Get / Any / Count / List)
+All repository methods support:
+- include: Func<IQueryable<TEntity>, IQueryable<TEntity>>
+- orderBy: Func<IQueryable<TEntity>, IOrderedQueryable<TEntity>>
+- optional predicate (for Get/Any/Count/List)
 
 Example:
 ```csharp
@@ -55,47 +51,24 @@ var recent = await repo.ListAsync(
     e => e.IsActive,
     orderBy: q => q.OrderByDescending(x => x.CreatedUtc),
     include: q => q.Include(x => x.Children));
-
-var activeCount = await repo.CountAsync(e => e.IsActive);
 ```
 
-## Create Semantics
-- Single entity: `await repo.CreateAsync(entity);`
-- Batch: `await repo.CreateAsync(entities); // IEnumerable<TEntity>`
-- If inside an active Unit of Work (`EFUoWProvider.BeginAsync()` called), changes are staged and flushed on `CommitAsync()`; otherwise `SaveChangesAsync` is called immediately (only if there are tracked changes).
-
-## Update Semantics
-`UpdateAsync(entity)`
-- If an entity with the same primary key is already tracked, its values are updated via `Entry(tracked).CurrentValues.SetValues(entity)`.
-- If not tracked, the entity is attached and marked `Modified`.
-- Composite keys are supported (resolved from EF Core model metadata).
-- If the entity implements `IHasModifiedUtc`, that timestamp is automatically updated.
-- Within an active Unit of Work, the update is deferred until commit.
-
-## Delete Semantics
-`DeleteAsync(entity)`
-- Removes the entity (by reference / key resolution by EF). Within a Unit of Work, deletion is deferred until commit.
+## Create/Update/Delete Semantics
+- CreateAsync: single or batch; inside an active UoW, changes are deferred until CommitAsync.
+- UpdateAsync: updates tracked entity by key; sets ModifiedUtc when IHasModifiedUtc.
+- DeleteAsync: removes by reference/key.
 
 ## Unit of Work Integration
-(See [Unit of Work](unit-of-work.md) for provider details and guidance.)
-```csharp
-await uow.BeginAsync();
-await repo.CreateAsync(newEntity);
-await repo.UpdateAsync(existingEntity);
-await repo.DeleteAsync(toRemove);
-await uow.CommitAsync(); // single SaveChanges + optional transaction commit
-```
-Rollback scenario (no transaction provider, e.g. InMemory): pending tracked changes are cleared on `RollbackAsync()`.
+See [Unit of Work](unit-of-work.md). In short:
+- BeginAsync activates the scope; repositories defer SaveChanges while active.
+- CommitAsync persists changes for all enlisted contexts and commits transactions where supported.
+- RollbackAsync rolls back transactions where present and clears ChangeTrackers.
 
-## When to Subclass Base Repo Implementations
-Do NOT subclass if the base implementations already cover your needs (generic CRUD + deferred persistence in a UoW).
+## When to Subclass
+Stick with the provided repos unless you need:
+- Domain-specific query helpers
+- Performance tweaks (compiled queries, projections)
+- Raw SQL / stored procedures behind a safe API
+- Cross-cutting behavior (soft delete, multi-tenancy, policies)
 
-Subclass only when you need one of:
-- Domain-specific query helpers (aggregate common query shapes)
-- Performance optimizations (compiled queries, projection shortcuts, caching hooks)
-- Raw SQL / stored procedure encapsulation behind a safe API
-- Cross-cutting behaviors (soft delete, multi-tenancy, row-level security filters)
-- Extended auditing or policy enforcement before/after operations
-- Coordination across multiple DbContexts / databases behind a single facade
-
-If only one feature is needed occasionally, consider extension methods or a service layer first—subclassing should add clear, reusable value.
+For tests that shouldn’t depend on EF Core semantics, use mock providers.

@@ -2,7 +2,7 @@
 
 > For concrete usage examples (registration, provider swapping), open the `Corely.DataAccess.Demo` and `Corely.DataAccess.DemoApp` projects. They show real registrations for InMemory, MySql, and Postgres plus repository + UoW integration.
 
-Configurations abstract EF Core provider setup and unify DB-specific type metadata for auditing columns.
+Configurations abstract EF Core provider setup and unify DB-specific type metadata for audit columns.
 
 ## IEFConfiguration
 ```csharp
@@ -12,16 +12,18 @@ public interface IEFConfiguration
     IEFDbTypes GetDbTypes();
 }
 ```
-Implementations provide both EF Core options configuration and database type info (UTC timestamp type & default value) used by entity configuration helpers.
+- Configure is called by your DbContext.OnConfiguring when options aren’t already configured.
+- GetDbTypes provides a small set of provider-specific type hints used by entity configuration helpers (CreatedUtc/ModifiedUtc).
 
 ## Provided Base Classes
 | Base | Use Case | Notes |
 |------|----------|-------|
-| EFInMemoryConfigurationBase | Tests / demos | Column types are dummies (in-memory provider ignores them) |
-| EFMySqlConfigurationBase | MySQL / MariaDB | Uses TIMESTAMP + UTC_TIMESTAMP default |
-| EFPostgresConfigurationBase | PostgreSQL | Uses TIMESTAMP + CURRENT_TIMESTAMP |
+| EFInMemoryConfigurationBase | Tests / demos | Provider ignores column types; still supplies placeholders |
+| EFMySqlConfigurationBase | MySQL / MariaDB | UTC defaults via UTC_TIMESTAMP |
+| EFPostgresConfigurationBase | PostgreSQL | UTC defaults via CURRENT_TIMESTAMP |
+| EFSqliteConfigurationBase | SQLite | TEXT + CURRENT_TIMESTAMP defaults; see demo for shared in-memory connection pattern |
 
-### Creating a Provider Configuration
+### Example
 ```csharp
 internal sealed class MySqlDemoConfiguration : EFMySqlConfigurationBase
 {
@@ -32,15 +34,12 @@ internal sealed class MySqlDemoConfiguration : EFMySqlConfigurationBase
 ```
 
 ### Swapping Providers
-To change database providers, replace the single `IEFConfiguration` registration:
+Replace the single IEFConfiguration registration:
 ```csharp
-services.AddSingleton<IEFConfiguration>(new MySqlDemoConfiguration(mySqlConnectionString));
+services.AddSingleton<IEFConfiguration>(new SqliteDemoConfiguration());
 ```
 
-### Accessing Db Types
-EntityConfigurationBase and its helpers consume `IEFDbTypes` from `GetDbTypes()`—application code rarely needs it directly.
-
-### Patterns
-- Register one singleton IEFConfiguration per context.
-- Keep connection strings outside code (user-secrets, env vars, vault) in real apps.
-- Wrap partial differences (logging, retry policies) in a derived configuration.
+### Patterns & Tips
+- Register one singleton IEFConfiguration that your DbContexts can consume.
+- Keep secrets out of code; pass connection strings via configuration.
+- For SQLite in-memory demos across multiple contexts, keep a single shared connection alive or use Cache=Shared.

@@ -1,63 +1,52 @@
-# Corely.DataAccess
+﻿# Corely.DataAccess
 
-High-level abstractions for data access that keep the domain/persistence boundary clean. The library provides:
+High-level abstractions over EF Core that keep the domain/persistence boundary clean while staying practical.
 
-- Provider-agnostic Entity Framework configuration abstraction (IEFConfiguration)
-- Database provider base configurations (InMemory, MySql, Postgres)
-- Entity configuration helpers (EntityConfigurationBase + extension methods for common columns)
-- Generic repositories (readonly + full CRUD)
-- Lightweight unit of work (transaction) abstraction
-- Demo project showing registration and usage
-- Mock repositories for fast unit tests
+What you get:
+- Decoupled persistence layer: domain works against small repo + UoW interfaces; EF Core is the default implementation but not required. You can plug in other providers (e.g., Dapper) by implementing the same interfaces.
+- Provider-agnostic EF configuration abstraction (IEFConfiguration + base classes)
+- Entity configuration helpers (EntityConfigurationBase + column helpers)
+- Generic repositories (readonly + CRUD) with adapters that auto-map to your DbContexts
+- Lightweight Unit of Work provider (deferred SaveChanges + transactions when supported)
+- Mock repositories and UoW for fast unit tests
+- Demo projects showing end-to-end registration and usage
 
 ## Quick Start
 ```bash
 dotnet add package Corely.DataAccess
 ```
-See the Step-by-Step guide for a minimal walkthrough: [Minimal Setup](step-by-step-setup.md)
 
-Minimal (single DbContext, no custom subclasses):
+## Registration
+Choose a provider configuration (see [Configurations](configurations.md)) and register one or more DbContexts. Adapters automatically resolve the correct DbContext for each entity at runtime.
 ```csharp
-services.AddSingleton<IEFConfiguration>(new InMemoryDemoConfiguration("quickstart-db"));
-services.AddScoped<MyDbContext>();
-services.AddScoped(typeof(IReadonlyRepo<>), typeof(EFReadonlyRepo<>));
-services.AddScoped(typeof(IRepo<>), typeof(EFRepo<>));
-services.AddScoped<IUnitOfWorkProvider, EFUoWProvider>(); // optional but recommended for batching / atomic multi-write
+services.AddSingleton<IEFConfiguration>(new SqliteDemoConfiguration()); // or MySql/Postgres/InMemory
+services.AddDbContext<MyDbContext>();
+
+// Repos + UoW (standard path)
+services.RegisterEntityFrameworkReposAndUoW();
+
+// Alternatively, mocks can be registered via services.RegisterMockReposAndUoW() for fast tests.
 ```
-Full / Custom (context-specific repo & UoW subclasses):
+Note: To use a non‑EF provider (e.g., Dapper), implement IReadonlyRepo<T>, IRepo<T>, and IUnitOfWorkProvider yourself and register those services in DI instead of the EF adapters/UoW.
+
+## Usage
 ```csharp
-// IEFConfiguration can target InMemory / MySql / Postgres via provided demo configs or your own subclass
-services.AddSingleton<IEFConfiguration>(new InMemoryDemoConfiguration("custom-db"));
-services.AddScoped<MyDbContext>();
+// For EF, if none or multiple contexts match to this entity, an error is thrown.
+var repo = sp.GetRequiredService<IRepo<MyEntity>>();
+await repo.CreateAsync(new MyEntity { /*...*/ });
 
-// Custom repo + UoW subclasses (adds a seam for cross-cutting concerns: caching, policies, metrics, etc.)
-services.AddScoped(typeof(IReadonlyRepo<>), typeof(MyReadonlyRepo<>));
-services.AddScoped(typeof(IRepo<>), typeof(MyRepo<>));
-services.AddScoped<IUnitOfWorkProvider, MyUoWProvider>();
-```
-Example custom subclasses:
-```csharp
-public sealed class MyReadonlyRepo<TEntity>(ILogger<EFReadonlyRepo<TEntity>> logger, MyDbContext ctx)
-    : EFReadonlyRepo<TEntity>(logger, ctx) where TEntity : class { }
-
-public sealed class MyRepo<TEntity>(ILogger<EFRepo<TEntity>> logger, MyDbContext ctx)
-    : EFRepo<TEntity>(logger, ctx) where TEntity : class { }
-
-public sealed class MyUoWProvider(MyDbContext ctx) : EFUoWProvider(ctx) { }
+var uow = sp.GetRequiredService<IUnitOfWorkProvider>();
+await uow.BeginAsync();
+await repo.UpdateAsync(entity);
+await uow.CommitAsync();
 ```
 
-## Key Concepts
-| Topic | Summary |
-|-------|---------|
-| IEFConfiguration | Abstraction to configure EF Core provider + expose unified db type metadata. |
-| Provider Bases | EFInMemoryConfigurationBase, EFMySqlConfigurationBase, EFPostgresConfigurationBase inherit IEFConfiguration. |
-| Entity Configuration | EntityConfigurationBase classes centralize common auditing + id setup. |
-| Repositories | EFReadonlyRepo / EFRepo provide generic query + CRUD patterns with extension points. |
-| Unit of Work | EFUoWProvider coordinates deferred SaveChanges + optional transactions. |
-| Mock Repositories | In-memory implementations for fast tests without provider dependencies. |
+## Key behaviors
+- For EF, repositories and the unit of work automatically resolve and use the appropriate DbContext for each entity at runtime.
+- While a unit of work is active, repository changes are deferred and saved together; on relational providers they are committed atomically.
+- Mock repositories/UoW can be swapped in for fast, provider‑free unit tests.
 
 ## Documentation
-- [Step-by-Step Minimal Setup](step-by-step-setup.md)
 - [Configurations](configurations.md)
 - [Entity Configuration & Property Helpers](entity-configuration.md)
 - [Repositories](repositories.md)
@@ -66,9 +55,9 @@ public sealed class MyUoWProvider(MyDbContext ctx) : EFUoWProvider(ctx) { }
 
 ## Demo
 See Corely.DataAccess.Demo and Corely.DataAccess.DemoApp for:
-- Switching providers (uncomment MySql/Postgres)
+- Switching providers (SQLite in-memory demo included)
 - Automatic entity configuration discovery
-- Open generic repo registration (or custom wrappers)
+- Adapter registration and UoW usage
 
 ## Philosophy
-Keep domain model free of persistence concerns while still leveraging EF Core efficiently. Favor composition and small interfaces; provide defaults but allow overrides via subclassing or replacing services.
+Keep domain code free of persistence details. Prefer small, composable abstractions; provide sensible defaults with easy escape hatches.

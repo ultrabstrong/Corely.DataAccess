@@ -1,33 +1,31 @@
 # Unit of Work
 
-> See `Corely.DataAccess.Demo` / `Corely.DataAccess.DemoApp` for a runnable example.
-
-Provides an optional boundary that (a) batches SaveChanges into a single flush and (b) wraps it in a transaction when the provider supports it.
+A lightweight boundary to group multiple repository writes into a single logical operation. While a unit of work (UoW) is active, repositories defer persistence; on commit, changes are saved together. On rollback, pending changes are discarded.
 
 ## Interface
 ```csharp
 public interface IUnitOfWorkProvider
 {
-    Task BeginAsync();
-    Task CommitAsync();
-    Task RollbackAsync();
+    Task BeginAsync(CancellationToken ct = default);
+    Task CommitAsync(CancellationToken ct = default);
+    Task RollbackAsync(CancellationToken ct = default);
+    IRepo<TEntity> GetRepository<TEntity>() where TEntity : class;
 }
 ```
 
-## EFUoWProvider
-- Starts a transaction for relational providers.
-- Skips transaction for InMemory but still defers SaveChanges until Commit.
-- Rollback clears tracked (unflushed) changes if no transaction was started.
+## How to Use
 
-Lifecycle (happy path + failure):
+Basic pattern:
 ```csharp
+var uow = sp.GetRequiredService<IUnitOfWorkProvider>();
 await uow.BeginAsync();
 try
 {
-    await repo.CreateAsync(e1);
-    await repo.UpdateAsync(e2);
-    await repo.DeleteAsync(e3);
-    await uow.CommitAsync(); // single SaveChanges (+ COMMIT if tx)
+    var repo = uow.GetRepository<MyEntity>();
+    await repo.CreateAsync(new MyEntity { /* ... */ });
+    await repo.UpdateAsync(existing);
+
+    await uow.CommitAsync();
 }
 catch
 {
@@ -36,35 +34,46 @@ catch
 }
 ```
 
+- Without an active UoW, repositories save immediately (typical for single operation calls).
+- With an active UoW, repositories defer persistence until CommitAsync().
+
+### Early vs Late Repository Resolution
+Both are supported.
+
+Early (resolve repo before Begin):
+```csharp
+var uow = sp.GetRequiredService<IUnitOfWorkProvider>();
+var repo = uow.GetRepository<MyEntity>();
+await uow.BeginAsync();
+await repo.CreateAsync(new MyEntity { /* ... */ });
+await uow.CommitAsync();
+```
+
+Late (resolve repo after Begin):
+```csharp
+var uow = sp.GetRequiredService<IUnitOfWorkProvider>();
+await uow.BeginAsync();
+var repo = uow.GetRepository<MyEntity>();
+await repo.CreateAsync(new MyEntity { /* ... */ });
+await uow.CommitAsync();
+```
+
+In both cases, the repository participates in the active UoW and its changes are included in the commit. Within the same DI scope, calling `GetRepository<T>()` enlists the scoped repository instance; any previously resolved references of that type in the same scope are enlisted as well. If the underlying provider supports transactions, the UoW will commit them together; otherwise it still batches SaveChanges.
+
 ## Registration
+Register repositories and the UoW with the provided helper:
 ```csharp
-services.AddScoped<IUnitOfWorkProvider, EFUoWProvider>();
+services.RegisterEntityFrameworkReposAndUoW();
 ```
-Or subclass:
+You also need to register your DbContexts and one provider configuration (see [Configurations](configurations.md)).
+
+For provider?free unit tests:
 ```csharp
-public sealed class DemoUoWProvider(DemoDbContext ctx) : EFUoWProvider(ctx);
+services.RegisterMockReposAndUoW();
 ```
 
-## When to Use a UoW
-Use it when you need:
-- Multiple writes must succeed/fail together.
-- Batch several small changes (reduce round trips).
-- A clear atomic boundary for invariants.
-
-Skip it for:
-- Single CRUD operations.
-- Pure reads.
-- Long-running or external-call heavy workflows (keep tx short).
-
-## When to Subclass `EFUoWProvider`
-Do NOT subclass if the base implementation already covers your needs (single DbContext + atomic multi-write + deferred SaveChanges).
-
-Subclass only when you need one of:
-- Post-commit side effects (domain/integration event publish, outbox dispatch, message enqueue)
-- Cross-cutting telemetry & auditing (logs, metrics, traces, enriched audit fields) executed exactly once per commit
-- Policy & security gates (tenant / permission validation, concurrency rules) at Begin or Commit
-- Multi-store coordination (multiple DbContexts / heterogeneous stores under one logical boundary)
-- Reliability wrappers (custom retry, deadlock/backoff policy around commit)
-- Lifecycle hooks (pre-commit validation, pre-rollback cleanup, post-rollback compensations)
-
-If only one behavior is needed occasionally, consider composition (call-site helper or decorator) before subclassing—the subclass should provide clear reusable value.
+## Notes
+- Participation and DI scopes: A repository participates when the active UoW scope has been applied to that scoped repository instance. Calling `uow.GetRepository<TEntity>()` within the current DI scope enlists that scoped instance; any references to the same scoped instance are enlisted too. Repositories resolved from a different DI scope are not enlisted automatically.
+- Recommendation: Inside a UoW, either resolve repositories via `GetRepository<T>()` or call it at least once per repo type you will use in the current DI scope before writing.
+- You can continue to use repositories after `CommitAsync()`; subsequent calls are no longer part of a UoW unless `BeginAsync()` is called again.
+- For EF-based setups, the appropriate DbContext for each entity is resolved at runtime. If none or multiple contexts match, an error is thrown.
