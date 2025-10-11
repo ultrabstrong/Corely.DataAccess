@@ -13,14 +13,24 @@ internal static class ServiceRegistration
     {
         var services = new ServiceCollection();
         services.AddLogging(b => b.AddConsole().SetMinimumLevel(LogLevel.Debug));
-        services.AddSingleton<IEFConfiguration>(_ => new InMemoryDemoConfiguration(
-            "demo-generic-db"
-        ));
-        services.AutoRegisterEntityFrameworkProviders();
+        // Use SQLite in-memory (shared) to demonstrate transactional UoW behavior
+        services.AddSingleton<IEFConfiguration>(_ => new SqliteDemoConfiguration());
+        services.RegisterEntityFrameworkReposAndUoW();
         services.AddScoped<DemoDbContext>();
         services.AddScoped<DemoDbContext2>();
         services.AddScoped<DemoService>();
         services.AddScoped<DemoService2>();
-        return services.BuildServiceProvider();
+        var provider = services.BuildServiceProvider();
+
+        // Ensure schema exists for SQLite
+        using (var scope = provider.CreateScope())
+        {
+            var ctx1 = scope.ServiceProvider.GetRequiredService<DemoDbContext>();
+            var ctx2 = scope.ServiceProvider.GetRequiredService<DemoDbContext2>();
+            ctx1.Database.EnsureCreated();
+            ctx2.Database.EnsureCreated();
+        }
+
+        return provider;
     }
 }

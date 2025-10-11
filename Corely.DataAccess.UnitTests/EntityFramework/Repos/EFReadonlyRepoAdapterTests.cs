@@ -8,14 +8,13 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace Corely.DataAccess.UnitTests.EntityFramework.Repos;
 
-public class EFRepoAdapterTests
+public class EFReadonlyRepoAdapterTests
 {
     private static ServiceProvider BuildProvider(bool registerSecondContext = false)
     {
         var services = new ServiceCollection();
         services.AddLogging();
 
-        // Register DbContexts
         services.AddDbContext<DbContextFixture>(o =>
             o.UseInMemoryDatabase(new Fixture().Create<string>())
         );
@@ -24,47 +23,46 @@ public class EFRepoAdapterTests
                 o.UseInMemoryDatabase(new Fixture().Create<string>())
             );
 
-        // Wire Corely repos + adapters + map
         services.RegisterEntityFrameworkReposAndUoW();
 
         return services.BuildServiceProvider();
     }
 
     [Fact]
-    public async Task RepoAdapter_CanCRUD_ViaResolvedContext()
+    public async Task ReadonlyAdapter_Get_List_Count_Any_Work()
     {
         using var provider = BuildProvider();
-        var repo = provider.GetRequiredService<IRepo<EntityFixture>>();
-
-        var e = new EntityFixture { Id = 42 };
-        await repo.CreateAsync(e);
-        var fetched = await repo.GetAsync(x => x.Id == 42);
-        Assert.NotNull(fetched);
-
-        await repo.UpdateAsync(new EntityFixture { Id = 42 });
-        var list = await repo.ListAsync();
-        Assert.Single(list);
-
-        await repo.DeleteAsync(list[0]);
-        Assert.False(await repo.AnyAsync(x => true));
-    }
-
-    [Fact]
-    public async Task ReadonlyRepoAdapter_CanQuery_ViaResolvedContext()
-    {
-        using var provider = BuildProvider();
-        var repo = provider.GetRequiredService<IReadonlyRepo<EntityFixture>>();
 
         // Seed through EF Core directly
         var ctx = provider.GetRequiredService<DbContextFixture>();
         ctx.Set<EntityFixture>()
-            .AddRange(new EntityFixture { Id = 1 }, new EntityFixture { Id = 2 });
+            .AddRange(
+                new EntityFixture { Id = 10 },
+                new EntityFixture { Id = 11 },
+                new EntityFixture { Id = 12 }
+            );
         await ctx.SaveChangesAsync();
 
-        var list = await repo.ListAsync();
-        Assert.Equal(2, list.Count);
-        Assert.True(await repo.AnyAsync(x => x.Id == 1));
-        Assert.Equal(2, await repo.CountAsync());
+        var repo = provider.GetRequiredService<IReadonlyRepo<EntityFixture>>();
+
+        var any = await repo.AnyAsync(e => e.Id == 11);
+        Assert.True(any);
+
+        var countAll = await repo.CountAsync();
+        Assert.Equal(3, countAll);
+
+        var countFiltered = await repo.CountAsync(e => e.Id >= 11);
+        Assert.Equal(2, countFiltered);
+
+        var single = await repo.GetAsync(e => e.Id == 12);
+        Assert.NotNull(single);
+        Assert.Equal(12, single!.Id);
+
+        var listAsc = await repo.ListAsync(orderBy: q => q.OrderBy(e => e.Id));
+        Assert.Equal([10, 11, 12], [.. listAsc.Select(e => e.Id)]);
+
+        var listDesc = await repo.ListAsync(orderBy: q => q.OrderByDescending(e => e.Id));
+        Assert.Equal([12, 11, 10], [.. listDesc.Select(e => e.Id)]);
     }
 
     [Fact]

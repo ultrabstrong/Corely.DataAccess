@@ -1,3 +1,4 @@
+using System.Linq.Expressions;
 using Corely.DataAccess.EntityFramework.UnitOfWork;
 using Corely.DataAccess.Interfaces.Repos;
 using Microsoft.Extensions.DependencyInjection;
@@ -42,24 +43,24 @@ internal sealed class EFRepoAdapter<TEntity> : IRepo<TEntity>, IEFScopeContextSe
         RepoResolver.DeleteAsync(entity, cancellationToken);
 
     public Task<TEntity?> GetAsync(
-        System.Linq.Expressions.Expression<Func<TEntity, bool>> query,
+        Expression<Func<TEntity, bool>> query,
         Func<IQueryable<TEntity>, IOrderedQueryable<TEntity>>? orderBy = null,
         Func<IQueryable<TEntity>, IQueryable<TEntity>>? include = null,
         CancellationToken cancellationToken = default
     ) => RepoResolver.GetAsync(query, orderBy, include, cancellationToken);
 
     public Task<bool> AnyAsync(
-        System.Linq.Expressions.Expression<Func<TEntity, bool>> query,
+        Expression<Func<TEntity, bool>> query,
         CancellationToken cancellationToken = default
     ) => RepoResolver.AnyAsync(query, cancellationToken);
 
     public Task<int> CountAsync(
-        System.Linq.Expressions.Expression<Func<TEntity, bool>>? query = null,
+        Expression<Func<TEntity, bool>>? query = null,
         CancellationToken cancellationToken = default
     ) => RepoResolver.CountAsync(query, cancellationToken);
 
     public Task<List<TEntity>> ListAsync(
-        System.Linq.Expressions.Expression<Func<TEntity, bool>>? query = null,
+        Expression<Func<TEntity, bool>>? query = null,
         Func<IQueryable<TEntity>, IOrderedQueryable<TEntity>>? orderBy = null,
         Func<IQueryable<TEntity>, IQueryable<TEntity>>? include = null,
         CancellationToken cancellationToken = default

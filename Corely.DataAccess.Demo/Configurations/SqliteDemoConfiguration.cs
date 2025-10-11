@@ -1,0 +1,27 @@
+using Corely.DataAccess.EntityFramework.Configurations;
+using Microsoft.Data.Sqlite;
+using Microsoft.EntityFrameworkCore;
+
+namespace Corely.DataAccess.Demo.Configurations;
+
+public class SqliteDemoConfiguration : EFSqliteConfigurationBase
+{
+    private readonly SqliteConnection _connection;
+
+    public SqliteDemoConfiguration(string databaseName = ":memory:")
+        : base(
+            databaseName == ":memory:"
+                ? "Data Source=:memory:;Cache=Shared"
+                : $"Data Source={databaseName}"
+        )
+    {
+        // Keep a shared in-memory connection open so multiple contexts can participate
+        _connection = new SqliteConnection(connectionString);
+        _connection.Open();
+    }
+
+    public override void Configure(DbContextOptionsBuilder optionsBuilder)
+    {
+        optionsBuilder.UseSqlite(_connection);
+    }
+}

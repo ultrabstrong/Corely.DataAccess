@@ -80,33 +80,26 @@ internal class Program
         Console.WriteLine();
         Console.WriteLine("Unit of Work Example:");
 
+        var unscopedRepo = provider.GetRequiredService<IRepo<DemoEntity>>();
+
         var uowProvider = provider.GetRequiredService<IUnitOfWorkProvider>();
         bool uowSucceeded = false;
         try
         {
-            // Note : EF in memory provider does not support transactions
             await uowProvider.BeginAsync();
-            var repo1 = uowProvider.GetRepository<DemoEntity>();
-            var repo2 = uowProvider.GetRepository<DemoEntity2>();
-            await repo1.CreateAsync(new DemoEntity { Id = 4, Name = "Delta" });
-            await repo2.CreateAsync(new DemoEntity2 { Id = 5, Name = "Epsilon" });
 
-            // Note : you can put a breakpoint here and inspect the DB
-            // to verify that the new entities are not yet present
+            // Note: the UoW provider supports repos from multiple contexts
+            // if the underlying database supports nested transactions.
+            var scopedRepo = uowProvider.GetRepository<DemoEntity>();
+            await scopedRepo.CreateAsync(new DemoEntity { Id = 4, Name = "Delta" });
+
+            var entitiesBeforeCommit = await unscopedRepo.ListAsync();
+            Console.WriteLine(
+                $"Entities from Unscoped Repo before UoW commit: {string.Join(", ", entitiesBeforeCommit.Select(e => e.Name))}"
+            );
+
             await uowProvider.CommitAsync();
             uowSucceeded = true;
-
-            // Can continue to use repos after UoW is committed
-            // Note that usages after commit will not be part of a UoW
-            var entities1 = await repo1.ListAsync();
-            var entities2 = await repo2.ListAsync();
-
-            Console.WriteLine(
-                $"Entities in Repo1: {string.Join(", ", entities1.Select(e => e.Name))}"
-            );
-            Console.WriteLine(
-                $"Entities in Repo2: {string.Join(", ", entities2.Select(e => e.Name))}"
-            );
         }
         finally
         {
@@ -115,5 +108,10 @@ internal class Program
                 await uowProvider.RollbackAsync();
             }
         }
+
+        var entitiesAfterCommit = await unscopedRepo.ListAsync();
+        Console.WriteLine(
+            $"Entities from Unscoped Repo after UoW commit: {string.Join(", ", entitiesAfterCommit.Select(e => e.Name))}"
+        );
     }
 }

@@ -29,8 +29,9 @@ public class EFRepoTests : RepoTestsBase
 
         var services = new ServiceCollection();
         services.AddLogging();
-        services.AddScoped<DbContextFixture>(_ => _dbContext);
-        services.AutoRegisterEntityFrameworkProviders();
+        // Register DbContext type with same in-memory database name so EFContextResolver can resolve it safely
+        services.AddDbContext<DbContextFixture>(o => o.UseInMemoryDatabase(_dbName));
+        services.RegisterEntityFrameworkReposAndUoW();
         _sp = services.BuildServiceProvider();
 
         _efRepo = new EFRepo<DbContextFixture, EntityFixture>(
