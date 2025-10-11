@@ -2,6 +2,8 @@
 
 Entity configuration base classes reduce repetition for common persistence concerns (table naming, keys, audit columns).
 
+Note: To avoid repeating provider setup and configuration discovery in each DbContext, you can inherit from EFConfiguredDbContext, which wires IEFConfiguration and automatically applies EntityConfigurationBase<> types from the context assembly.
+
 ## Base Concepts
 
 ### EntityConfigurationBase<TEntity>

@@ -80,11 +80,25 @@ public sealed class TodoItemConfiguration(IEFDbTypes db) : EntityConfigurationBa
 
 ## 5) Create Your DbContext
 Provider-agnostic: depends on `IEFConfiguration` and discovers configurations.
+
+Option A: inherit from EFConfiguredDbContext (recommended)
 ```csharp
 using Corely.DataAccess.EntityFramework;
 using Corely.DataAccess.EntityFramework.Configurations;
 using Microsoft.EntityFrameworkCore;
 
+public sealed class AppDbContext : EFConfiguredDbContext
+{
+    public AppDbContext(IEFConfiguration ef) : base(ef) {}
+    public AppDbContext(DbContextOptions<AppDbContext> opts, IEFConfiguration ef) : base(opts, ef) {}
+
+    public DbSet<TodoItem> TodoItems => Set<TodoItem>();
+}
+```
+See [Context Configuration](context-configuration.md) for extension hooks.
+
+Option B: implement the pattern directly
+```csharp
 public sealed class AppDbContext : DbContext
 {
     private readonly IEFConfiguration _ef;
@@ -113,7 +127,7 @@ public sealed class AppDbContext : DbContext
 ```
 
 ## 6) Register Services (DI)
-Use the helper to wire repositories and UoW. Also register a provider configuration and your DbContext(s).
+Use the helper to wire repositories. Also register a provider configuration and your DbContext(s).
 ```csharp
 var services = new ServiceCollection();
 services.AddSingleton<IEFConfiguration>(new SqliteAppConfiguration("Data Source=:memory:"));
@@ -166,6 +180,7 @@ Your `DbContext`, entities, and repository code remain unchanged.
 
 ## 10) Where to next?
 - [Configurations](configurations.md)
+- [Context Configuration](context-configuration.md)
 - [Entity Configuration](entity-configuration.md)
 - [Repositories](repositories.md)
 - [Unit of Work](unit-of-work.md)
