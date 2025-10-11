@@ -13,9 +13,8 @@ public class EntityConfigurationBaseTests
         public bool IsEFDbTypesSet => EFDbTypes != null;
         public bool ConfigureInternalCalled { get; private set; }
 
-        public TestEntityConfiguration(IEFDbTypes efDbTypes) : base(efDbTypes)
-        {
-        }
+        public TestEntityConfiguration(IEFDbTypes efDbTypes)
+            : base(efDbTypes) { }
 
         protected override void ConfigureInternal(EntityTypeBuilder<EntityFixture> builder)
         {
@@ -28,9 +27,8 @@ public class EntityConfigurationBaseTests
         public bool IsEFDbTypesSet => EFDbTypes != null;
         public bool ConfigureInternalCalled { get; private set; }
 
-        public TestEntityConfigurationWithKey(IEFDbTypes efDbTypes) : base(efDbTypes)
-        {
-        }
+        public TestEntityConfigurationWithKey(IEFDbTypes efDbTypes)
+            : base(efDbTypes) { }
 
         protected override void ConfigureInternal(EntityTypeBuilder<EntityFixture> builder)
         {

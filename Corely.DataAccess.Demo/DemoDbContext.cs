@@ -3,6 +3,7 @@ using Corely.DataAccess.EntityFramework.Configurations;
 using Microsoft.EntityFrameworkCore;
 
 namespace Corely.DataAccess.Demo;
+
 public class DemoDbContext : DbContext
 {
     // This EF config allows switching between different database providers
@@ -14,7 +15,8 @@ public class DemoDbContext : DbContext
         _efConfiguration = efConfiguration;
     }
 
-    public DemoDbContext(DbContextOptions<DemoDbContext> options, IEFConfiguration efConfiguration) : base(options)
+    public DemoDbContext(DbContextOptions<DemoDbContext> options, IEFConfiguration efConfiguration)
+        : base(options)
     {
         _efConfiguration = efConfiguration;
     }
@@ -34,10 +36,15 @@ public class DemoDbContext : DbContext
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         var configurationType = typeof(EntityConfigurationBase<>);
-        var configurations = GetType().Assembly.GetTypes()
-            .Where(t => t.IsClass && !t.IsAbstract && t.BaseType != null
-                        && t.BaseType.IsGenericType
-                        && t.BaseType.GetGenericTypeDefinition() == configurationType);
+        var configurations = GetType()
+            .Assembly.GetTypes()
+            .Where(t =>
+                t.IsClass
+                && !t.IsAbstract
+                && t.BaseType != null
+                && t.BaseType.IsGenericType
+                && t.BaseType.GetGenericTypeDefinition() == configurationType
+            );
 
         foreach (var config in configurations)
         {

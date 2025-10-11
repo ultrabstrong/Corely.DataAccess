@@ -8,12 +8,10 @@ public class EFPostgresConfigurationBaseTests : EFConfigurationTestsBase
 {
     private class MockPostgresEFConfiguration : EFPostgresConfigurationBase
     {
-        public MockPostgresEFConfiguration(string connectionString) : base(connectionString)
-        {
-        }
-        public override void Configure(DbContextOptionsBuilder optionsBuilder)
-        {
-        }
+        public MockPostgresEFConfiguration(string connectionString)
+            : base(connectionString) { }
+
+        public override void Configure(DbContextOptionsBuilder optionsBuilder) { }
     }
 
     private readonly Fixture _fixture = new();

@@ -1,16 +1,16 @@
-﻿using Corely.DataAccess.Interfaces.Entities;
+﻿using System.Linq.Expressions;
+using Corely.DataAccess.Interfaces.Entities;
 using Corely.DataAccess.Interfaces.Repos;
-using System.Linq.Expressions;
 
 namespace Corely.DataAccess.Mock.Repos;
 
-public class MockRepo<TEntity>
-    : IRepo<TEntity>
+public class MockRepo<TEntity> : IRepo<TEntity>
     where TEntity : class
 {
     public readonly List<TEntity> Entities = [];
 
-    public MockRepo() : base() { }
+    public MockRepo()
+        : base() { }
 
     private static bool TryGetId(object entity, out object? id)
     {
@@ -21,7 +21,9 @@ public class MockRepo<TEntity>
         var idInterface = entity
             .GetType()
             .GetInterfaces()
-            .FirstOrDefault(i => i.IsGenericType && i.GetGenericTypeDefinition() == typeof(IHasIdPk<>));
+            .FirstOrDefault(i =>
+                i.IsGenericType && i.GetGenericTypeDefinition() == typeof(IHasIdPk<>)
+            );
 
         if (idInterface == null)
             return false;
@@ -34,11 +36,10 @@ public class MockRepo<TEntity>
         return id != null;
     }
 
-    private static object? GetIdOrNull(object entity)
-        => TryGetId(entity, out var id) ? id : null;
+    private static object? GetIdOrNull(object entity) => TryGetId(entity, out var id) ? id : null;
 
-    private static bool IsCreatedUtcUnset(object entity)
-        => entity is IHasCreatedUtc hc && hc.CreatedUtc == default;
+    private static bool IsCreatedUtcUnset(object entity) =>
+        entity is IHasCreatedUtc hc && hc.CreatedUtc == default;
 
     private static void EnsureCreatedUtc(object entity)
     {
@@ -48,14 +49,20 @@ public class MockRepo<TEntity>
         }
     }
 
-    public virtual Task<TEntity> CreateAsync(TEntity entity, CancellationToken cancellationToken = default)
+    public virtual Task<TEntity> CreateAsync(
+        TEntity entity,
+        CancellationToken cancellationToken = default
+    )
     {
         EnsureCreatedUtc(entity);
         Entities.Add(entity);
         return Task.FromResult(entity);
     }
 
-    public virtual Task CreateAsync(IEnumerable<TEntity> entities, CancellationToken cancellationToken = default)
+    public virtual Task CreateAsync(
+        IEnumerable<TEntity> entities,
+        CancellationToken cancellationToken = default
+    )
     {
         foreach (var e in entities)
             EnsureCreatedUtc(e);
@@ -67,7 +74,8 @@ public class MockRepo<TEntity>
         Expression<Func<TEntity, bool>> query,
         Func<IQueryable<TEntity>, IOrderedQueryable<TEntity>>? orderBy = null,
         Func<IQueryable<TEntity>, IQueryable<TEntity>>? include = null,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default
+    )
     {
         ArgumentNullException.ThrowIfNull(query);
         var predicate = query.Compile();
@@ -86,7 +94,10 @@ public class MockRepo<TEntity>
         return await Task.FromResult(queryable.FirstOrDefault(predicate));
     }
 
-    public virtual Task<bool> AnyAsync(Expression<Func<TEntity, bool>> query, CancellationToken cancellationToken = default)
+    public virtual Task<bool> AnyAsync(
+        Expression<Func<TEntity, bool>> query,
+        CancellationToken cancellationToken = default
+    )
     {
         ArgumentNullException.ThrowIfNull(query);
         var predicate = query.Compile();
@@ -95,7 +106,8 @@ public class MockRepo<TEntity>
 
     public virtual Task<int> CountAsync(
         Expression<Func<TEntity, bool>>? query = null,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default
+    )
     {
         if (query == null)
         {
@@ -109,7 +121,8 @@ public class MockRepo<TEntity>
         Expression<Func<TEntity, bool>>? query = null,
         Func<IQueryable<TEntity>, IOrderedQueryable<TEntity>>? orderBy = null,
         Func<IQueryable<TEntity>, IQueryable<TEntity>>? include = null,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default
+    )
     {
         var queryable = Entities.AsQueryable();
         if (query != null)
@@ -145,7 +158,11 @@ public class MockRepo<TEntity>
                 if (existingId != null && Equals(existingId, incomingId))
                 {
                     // Preserve CreatedUtc if update entity did not set it
-                    if (Entities[i] is IHasCreatedUtc existingCreated && entity is IHasCreatedUtc incomingCreated && IsCreatedUtcUnset(incomingCreated))
+                    if (
+                        Entities[i] is IHasCreatedUtc existingCreated
+                        && entity is IHasCreatedUtc incomingCreated
+                        && IsCreatedUtcUnset(incomingCreated)
+                    )
                     {
                         incomingCreated.CreatedUtc = existingCreated.CreatedUtc;
                     }

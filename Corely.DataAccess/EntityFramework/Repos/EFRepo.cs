@@ -1,30 +1,44 @@
-﻿using Corely.DataAccess.Interfaces.Entities;
+﻿using Corely.DataAccess.EntityFramework.UnitOfWork;
+using Corely.DataAccess.Interfaces.Entities;
 using Corely.DataAccess.Interfaces.Repos;
-using Corely.DataAccess.Interfaces.UnitOfWork;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 
 namespace Corely.DataAccess.EntityFramework.Repos;
 
-internal sealed class EFRepo<TContext, TEntity> : EFReadonlyRepo<TContext, TEntity>, IRepo<TEntity>
+internal sealed class EFRepo<TContext, TEntity>
+    : EFReadonlyRepo<TContext, TEntity>,
+        IRepo<TEntity>,
+        IEFScopeContextSetter
     where TContext : DbContext
     where TEntity : class
 {
-    private readonly IUnitOfWorkScopeAccessor _scope;
+    private EFUnitOfWorkScope? _scope;
 
-    public EFRepo(
-        ILogger<EFRepo<TContext, TEntity>> logger,
-        TContext dbContext,
-        IUnitOfWorkScopeAccessor scope)
+    public EFRepo(ILogger<EFRepo<TContext, TEntity>> logger, TContext dbContext)
         : base(logger, dbContext)
     {
-        _scope = scope;
-        Logger.LogTrace("{RepoType} created for {EntityType} on {ContextType}", GetType().Name.Split('`')[0], typeof(TEntity).Name, typeof(TContext).Name);
+        Logger.LogTrace(
+            "{RepoType} created for {EntityType} on {ContextType}",
+            GetType().Name.Split('`')[0],
+            typeof(TEntity).Name,
+            typeof(TContext).Name
+        );
     }
 
-    private bool ShouldSaveChanges() => !_scope.IsActive && DbContext.ChangeTracker.HasChanges();
+    public void SetScope(EFUnitOfWorkScope scope)
+    {
+        _scope = scope;
+        _scope.Register(DbContext);
+    }
 
-    public async Task<TEntity> CreateAsync(TEntity entity, CancellationToken cancellationToken = default)
+    private bool ShouldSaveChanges() =>
+        (_scope == null || !_scope.IsActive) && DbContext.ChangeTracker.HasChanges();
+
+    public async Task<TEntity> CreateAsync(
+        TEntity entity,
+        CancellationToken cancellationToken = default
+    )
     {
         var newEntity = await DbSet.AddAsync(entity, cancellationToken);
         if (ShouldSaveChanges())
@@ -32,7 +46,10 @@ internal sealed class EFRepo<TContext, TEntity> : EFReadonlyRepo<TContext, TEnti
         return newEntity.Entity;
     }
 
-    public async Task CreateAsync(IEnumerable<TEntity> entities, CancellationToken cancellationToken = default)
+    public async Task CreateAsync(
+        IEnumerable<TEntity> entities,
+        CancellationToken cancellationToken = default
+    )
     {
         await DbSet.AddRangeAsync(entities, cancellationToken);
         if (ShouldSaveChanges())
@@ -63,7 +80,8 @@ internal sealed class EFRepo<TContext, TEntity> : EFReadonlyRepo<TContext, TEnti
                     var localVal = clrProp.GetValue(local);
                     var newVal = clrProp.GetValue(entity);
                     return Equals(localVal, newVal);
-                }));
+                })
+            );
 
             if (tracked != null)
                 DbContext.Entry(tracked).CurrentValues.SetValues(entity);

@@ -77,14 +77,36 @@ internal class Program
 
     static async Task UnitOfWorkExample(IServiceProvider provider)
     {
+        Console.WriteLine();
+        Console.WriteLine("Unit of Work Example:");
+
         var uowProvider = provider.GetRequiredService<IUnitOfWorkProvider>();
         bool uowSucceeded = false;
         try
         {
+            // Note : EF in memory provider does not support transactions
             await uowProvider.BeginAsync();
-            // Perform atomic work here
+            var repo1 = uowProvider.GetRepository<DemoEntity>();
+            var repo2 = uowProvider.GetRepository<DemoEntity2>();
+            await repo1.CreateAsync(new DemoEntity { Id = 4, Name = "Delta" });
+            await repo2.CreateAsync(new DemoEntity2 { Id = 5, Name = "Epsilon" });
+
+            // Note : you can put a breakpoint here and inspect the DB
+            // to verify that the new entities are not yet present
             await uowProvider.CommitAsync();
             uowSucceeded = true;
+
+            // Can continue to use repos after UoW is committed
+            // Note that usages after commit will not be part of a UoW
+            var entities1 = await repo1.ListAsync();
+            var entities2 = await repo2.ListAsync();
+
+            Console.WriteLine(
+                $"Entities in Repo1: {string.Join(", ", entities1.Select(e => e.Name))}"
+            );
+            Console.WriteLine(
+                $"Entities in Repo2: {string.Join(", ", entities2.Select(e => e.Name))}"
+            );
         }
         finally
         {

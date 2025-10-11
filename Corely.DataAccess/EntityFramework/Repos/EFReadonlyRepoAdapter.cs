@@ -1,34 +1,51 @@
-﻿using Corely.DataAccess.Interfaces.Repos;
+﻿using System.Linq.Expressions;
+using Corely.DataAccess.Interfaces.Repos;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.EntityFrameworkCore;
 
 namespace Corely.DataAccess.EntityFramework.Repos;
 
 internal sealed class EFReadonlyRepoAdapter<TEntity> : IReadonlyRepo<TEntity>
     where TEntity : class
 {
-    private readonly IServiceProvider _sp;
-    private readonly IEntityContextMap _map;
-    private readonly Lazy<object> _inner; // EFReadonlyRepo<TContext,TEntity>
+    private readonly IServiceProvider _serviceProvider;
+    private readonly IEFContextResolver _entityMapper;
+    private readonly Lazy<object> _repoResolver; // EFReadonlyRepo<TContext,TEntity>
 
-    public EFReadonlyRepoAdapter(IServiceProvider sp, IEntityContextMap map)
+    public EFReadonlyRepoAdapter(IServiceProvider serviceProvider, IEFContextResolver entityMapper)
     {
-        _sp = sp;
-        _map = map;
-        _inner = new Lazy<object>(() => ResolveInner());
+        _serviceProvider = serviceProvider;
+        _entityMapper = entityMapper;
+        _repoResolver = new Lazy<object>(() =>
+        {
+            var ctxType = _entityMapper.GetContextTypeFor(typeof(TEntity));
+            var concrete = typeof(EFReadonlyRepo<,>).MakeGenericType(ctxType, typeof(TEntity));
+            return _serviceProvider.GetRequiredService(concrete);
+        });
     }
 
-    private object ResolveInner()
-    {
-        var ctxType = _map.GetContextTypeFor(typeof(TEntity));
-        var concrete = typeof(EFReadonlyRepo<,>).MakeGenericType(ctxType, typeof(TEntity));
-        return _sp.GetRequiredService(concrete);
-    }
+    private dynamic RepoResolver => _repoResolver.Value;
 
-    private dynamic Inner => _inner.Value;
+    public Task<TEntity?> GetAsync(
+        Expression<Func<TEntity, bool>> query,
+        Func<IQueryable<TEntity>, IOrderedQueryable<TEntity>>? orderBy = null,
+        Func<IQueryable<TEntity>, IQueryable<TEntity>>? include = null,
+        CancellationToken cancellationToken = default
+    ) => RepoResolver.GetAsync(query, orderBy, include, cancellationToken);
 
-    public Task<TEntity?> GetAsync(System.Linq.Expressions.Expression<Func<TEntity, bool>> query, Func<IQueryable<TEntity>, IOrderedQueryable<TEntity>>? orderBy = null, Func<IQueryable<TEntity>, IQueryable<TEntity>>? include = null, CancellationToken cancellationToken = default) => Inner.GetAsync(query, orderBy, include, cancellationToken);
-    public Task<bool> AnyAsync(System.Linq.Expressions.Expression<Func<TEntity, bool>> query, CancellationToken cancellationToken = default) => Inner.AnyAsync(query, cancellationToken);
-    public Task<int> CountAsync(System.Linq.Expressions.Expression<Func<TEntity, bool>>? query = null, CancellationToken cancellationToken = default) => Inner.CountAsync(query, cancellationToken);
-    public Task<List<TEntity>> ListAsync(System.Linq.Expressions.Expression<Func<TEntity, bool>>? query = null, Func<IQueryable<TEntity>, IOrderedQueryable<TEntity>>? orderBy = null, Func<IQueryable<TEntity>, IQueryable<TEntity>>? include = null, CancellationToken cancellationToken = default) => Inner.ListAsync(query, orderBy, include, cancellationToken);
+    public Task<bool> AnyAsync(
+        Expression<Func<TEntity, bool>> query,
+        CancellationToken cancellationToken = default
+    ) => RepoResolver.AnyAsync(query, cancellationToken);
+
+    public Task<int> CountAsync(
+        Expression<Func<TEntity, bool>>? query = null,
+        CancellationToken cancellationToken = default
+    ) => RepoResolver.CountAsync(query, cancellationToken);
+
+    public Task<List<TEntity>> ListAsync(
+        Expression<Func<TEntity, bool>>? query = null,
+        Func<IQueryable<TEntity>, IOrderedQueryable<TEntity>>? orderBy = null,
+        Func<IQueryable<TEntity>, IQueryable<TEntity>>? include = null,
+        CancellationToken cancellationToken = default
+    ) => RepoResolver.ListAsync(query, orderBy, include, cancellationToken);
 }

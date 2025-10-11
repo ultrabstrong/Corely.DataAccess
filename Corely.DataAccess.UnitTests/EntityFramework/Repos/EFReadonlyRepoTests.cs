@@ -18,7 +18,8 @@ public class EFReadonlyRepoTests : ReadonlyRepoTestsBase
 
         _efReadonlyRepo = new(
             Moq.Mock.Of<ILogger<EFReadonlyRepo<DbContextFixture, EntityFixture>>>(),
-            _dbContext);
+            _dbContext
+        );
     }
 
     private static DbContextFixture GetDbContext()
@@ -42,5 +43,6 @@ public class EFReadonlyRepoTests : ReadonlyRepoTestsBase
 
     protected override IReadonlyRepo<EntityFixture> ReadonlyRepo => _efReadonlyRepo;
 
-    protected override int FillRepoAndReturnId() => _dbContext.Set<EntityFixture>().Skip(1).First().Id;
+    protected override int FillRepoAndReturnId() =>
+        _dbContext.Set<EntityFixture>().Skip(1).First().Id;
 }

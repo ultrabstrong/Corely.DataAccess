@@ -1,10 +1,12 @@
 ﻿using Corely.DataAccess.Interfaces.Entities;
 
 namespace Corely.DataAccess.Demo;
+
 public class DemoEntity : IHasIdPk<int>, IHasCreatedUtc, IHasModifiedUtc
 {
     // Custom property ; need to configure manually
     public string Name { get; set; } = string.Empty;
+
     // Inherited properties that are auto-configured
     public int Id { get; set; }
     public DateTime CreatedUtc { get; set; }

@@ -5,10 +5,11 @@ using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
 namespace Corely.DataAccess.Extensions;
 
-
 public static class EntityTypeBuilderExtensions
 {
-    public static EntityTypeBuilder<TEntity> ConfigureTable<TEntity>(this EntityTypeBuilder<TEntity> builder)
+    public static EntityTypeBuilder<TEntity> ConfigureTable<TEntity>(
+        this EntityTypeBuilder<TEntity> builder
+    )
         where TEntity : class
     {
         var tableName = typeof(TEntity).Name;
@@ -24,21 +25,26 @@ public static class EntityTypeBuilderExtensions
         return builder;
     }
 
-    public static EntityTypeBuilder<TEntity> ConfigureIdPk<TEntity, TKey>(this EntityTypeBuilder<TEntity> builder)
+    public static EntityTypeBuilder<TEntity> ConfigureIdPk<TEntity, TKey>(
+        this EntityTypeBuilder<TEntity> builder
+    )
         where TEntity : class, IHasIdPk<TKey>
     {
         builder.HasKey(e => e.Id);
-        builder.Property(e => e.Id)
-            .ValueGeneratedOnAdd();
+        builder.Property(e => e.Id).ValueGeneratedOnAdd();
         return builder;
     }
 
-    public static EntityTypeBuilder<TEntity> ConfigureCreatedUtc<TEntity>(this EntityTypeBuilder<TEntity> builder, IEFDbTypes efDbTypes)
+    public static EntityTypeBuilder<TEntity> ConfigureCreatedUtc<TEntity>(
+        this EntityTypeBuilder<TEntity> builder,
+        IEFDbTypes efDbTypes
+    )
         where TEntity : class
     {
         if (typeof(IHasCreatedUtc).IsAssignableFrom(typeof(TEntity)))
         {
-            builder.Property(e => ((IHasCreatedUtc)e).CreatedUtc)
+            builder
+                .Property(e => ((IHasCreatedUtc)e).CreatedUtc)
                 .HasColumnType(efDbTypes.UTCDateColumnType)
                 .HasDefaultValueSql(efDbTypes.UTCDateColumnDefaultValue)
                 .IsRequired();
@@ -47,12 +53,16 @@ public static class EntityTypeBuilderExtensions
         return builder;
     }
 
-    public static EntityTypeBuilder<TEntity> ConfigureModifiedUtc<TEntity>(this EntityTypeBuilder<TEntity> builder, IEFDbTypes efDbTypes)
+    public static EntityTypeBuilder<TEntity> ConfigureModifiedUtc<TEntity>(
+        this EntityTypeBuilder<TEntity> builder,
+        IEFDbTypes efDbTypes
+    )
         where TEntity : class
     {
         if (typeof(IHasModifiedUtc).IsAssignableFrom(typeof(TEntity)))
         {
-            builder.Property(e => ((IHasModifiedUtc)e).ModifiedUtc)
+            builder
+                .Property(e => ((IHasModifiedUtc)e).ModifiedUtc)
                 .HasColumnType(efDbTypes.UTCDateColumnType);
         }
 

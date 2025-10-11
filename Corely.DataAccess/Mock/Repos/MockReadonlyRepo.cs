@@ -1,10 +1,9 @@
-﻿using Corely.DataAccess.Interfaces.Repos;
-using System.Linq.Expressions;
+﻿using System.Linq.Expressions;
+using Corely.DataAccess.Interfaces.Repos;
 
 namespace Corely.DataAccess.Mock.Repos;
 
-public class MockReadonlyRepo<TEntity>
-    : IReadonlyRepo<TEntity>
+public class MockReadonlyRepo<TEntity> : IReadonlyRepo<TEntity>
     where TEntity : class
 {
     private readonly MockRepo<TEntity> _mockRepo;
@@ -19,17 +18,23 @@ public class MockReadonlyRepo<TEntity>
         Expression<Func<TEntity, bool>> query,
         Func<IQueryable<TEntity>, IOrderedQueryable<TEntity>>? orderBy = null,
         Func<IQueryable<TEntity>, IQueryable<TEntity>>? include = null,
-        CancellationToken cancellationToken = default) => await _mockRepo.GetAsync(query, orderBy, include, cancellationToken);
+        CancellationToken cancellationToken = default
+    ) => await _mockRepo.GetAsync(query, orderBy, include, cancellationToken);
 
-    public virtual async Task<bool> AnyAsync(Expression<Func<TEntity, bool>> query, CancellationToken cancellationToken = default) => await _mockRepo.AnyAsync(query, cancellationToken);
+    public virtual async Task<bool> AnyAsync(
+        Expression<Func<TEntity, bool>> query,
+        CancellationToken cancellationToken = default
+    ) => await _mockRepo.AnyAsync(query, cancellationToken);
 
     public virtual async Task<int> CountAsync(
         Expression<Func<TEntity, bool>>? query = null,
-        CancellationToken cancellationToken = default) => await _mockRepo.CountAsync(query, cancellationToken);
+        CancellationToken cancellationToken = default
+    ) => await _mockRepo.CountAsync(query, cancellationToken);
 
     public virtual async Task<List<TEntity>> ListAsync(
         Expression<Func<TEntity, bool>>? query = null,
         Func<IQueryable<TEntity>, IOrderedQueryable<TEntity>>? orderBy = null,
         Func<IQueryable<TEntity>, IQueryable<TEntity>>? include = null,
-        CancellationToken cancellationToken = default) => await _mockRepo.ListAsync(query, orderBy, include, cancellationToken);
+        CancellationToken cancellationToken = default
+    ) => await _mockRepo.ListAsync(query, orderBy, include, cancellationToken);
 }

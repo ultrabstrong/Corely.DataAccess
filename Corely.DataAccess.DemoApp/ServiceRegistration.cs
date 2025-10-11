@@ -13,7 +13,9 @@ internal static class ServiceRegistration
     {
         var services = new ServiceCollection();
         services.AddLogging(b => b.AddConsole().SetMinimumLevel(LogLevel.Debug));
-        services.AddSingleton<IEFConfiguration>(_ => new InMemoryDemoConfiguration("demo-generic-db"));
+        services.AddSingleton<IEFConfiguration>(_ => new InMemoryDemoConfiguration(
+            "demo-generic-db"
+        ));
         services.AutoRegisterEntityFrameworkProviders();
         services.AddScoped<DemoDbContext>();
         services.AddScoped<DemoDbContext2>();

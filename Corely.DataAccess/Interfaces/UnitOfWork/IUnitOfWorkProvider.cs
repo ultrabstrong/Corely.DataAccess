@@ -1,8 +1,12 @@
-﻿namespace Corely.DataAccess.Interfaces.UnitOfWork;
+﻿using Corely.DataAccess.Interfaces.Repos;
+
+namespace Corely.DataAccess.Interfaces.UnitOfWork;
 
 public interface IUnitOfWorkProvider
 {
     Task BeginAsync(CancellationToken cancellationToken = default);
     Task CommitAsync(CancellationToken cancellationToken = default);
     Task RollbackAsync(CancellationToken cancellationToken = default);
+    IRepo<TEntity> GetRepository<TEntity>()
+        where TEntity : class;
 }

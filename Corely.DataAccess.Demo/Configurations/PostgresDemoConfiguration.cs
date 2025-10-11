@@ -1,10 +1,11 @@
+using System.Reflection;
 using Corely.DataAccess.EntityFramework.Configurations;
 using Microsoft.EntityFrameworkCore;
-using System.Reflection;
 
 namespace Corely.DataAccess.Demo.Configurations;
 
-public class PostgresDemoConfiguration(string connectionString) : EFPostgresConfigurationBase(connectionString)
+public class PostgresDemoConfiguration(string connectionString)
+    : EFPostgresConfigurationBase(connectionString)
 {
     public override void Configure(DbContextOptionsBuilder optionsBuilder)
     {

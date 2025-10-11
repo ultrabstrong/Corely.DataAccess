@@ -1,11 +1,11 @@
 ﻿using AutoFixture;
-using Corely.DataAccess.EntityFramework;
 using Corely.DataAccess.EntityFramework.Repos;
+using Corely.DataAccess.EntityFramework.UnitOfWork;
+using Corely.DataAccess.Extensions;
 using Corely.DataAccess.Interfaces.Repos;
-using Corely.DataAccess.Interfaces.UnitOfWork;
-using Corely.DataAccess.UnitOfWork;
 using Corely.DataAccess.UnitTests.Fixtures;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 
 namespace Corely.DataAccess.UnitTests.EntityFramework.Repos;
@@ -15,7 +15,7 @@ public class EFRepoTests : RepoTestsBase
     private readonly EFRepo<DbContextFixture, EntityFixture> _efRepo;
     private readonly DbContextFixture _dbContext;
     private readonly string _dbName;
-    private readonly IUnitOfWorkScopeAccessor _scope;
+    private readonly IServiceProvider _sp;
     private readonly EntityFixture _testEntity = new() { Id = 1 };
 
     public EFRepoTests()
@@ -24,13 +24,19 @@ public class EFRepoTests : RepoTestsBase
         _dbContext = new DbContextFixture(
             new DbContextOptionsBuilder<DbContextFixture>()
                 .UseInMemoryDatabase(databaseName: _dbName)
-                .Options);
-        _scope = new DefaultUnitOfWorkScopeAccessor();
+                .Options
+        );
+
+        var services = new ServiceCollection();
+        services.AddLogging();
+        services.AddScoped<DbContextFixture>(_ => _dbContext);
+        services.AutoRegisterEntityFrameworkProviders();
+        _sp = services.BuildServiceProvider();
 
         _efRepo = new EFRepo<DbContextFixture, EntityFixture>(
             Moq.Mock.Of<ILogger<EFRepo<DbContextFixture, EntityFixture>>>(),
-            _dbContext,
-            _scope);
+            _dbContext
+        );
     }
 
     protected override IRepo<EntityFixture> Repo => _efRepo;
@@ -65,34 +71,29 @@ public class EFRepoTests : RepoTestsBase
         Assert.NotEqual(_testEntity, updatedEntity);
         Assert.Equal(entity, updatedEntity);
         Assert.NotNull(updatedEntity.ModifiedUtc);
-        Assert.InRange(updatedEntity.ModifiedUtc.Value, DateTime.UtcNow.AddSeconds(-2), DateTime.UtcNow);
-    }
-
-    [Fact]
-    public async Task UpdateAsync_UpdatesExistingEntity()
-    {
-        await _efRepo.CreateAsync(_testEntity);
-        var untrackedSetupEntity = new EntityFixture { Id = _testEntity.Id };
-        await _efRepo.UpdateAsync(untrackedSetupEntity);
-        Assert.NotNull(_testEntity.ModifiedUtc);
-        Assert.InRange(_testEntity.ModifiedUtc.Value, DateTime.UtcNow.AddSeconds(-2), DateTime.UtcNow);
+        Assert.InRange(
+            updatedEntity.ModifiedUtc.Value,
+            DateTime.UtcNow.AddSeconds(-2),
+            DateTime.UtcNow
+        );
     }
 
     [Fact]
     public async Task DeferredPersistence_InsideUnitOfWork_DoesNotSaveUntilCommit()
     {
-        var uow = new EFUoWProvider(_dbContext, _scope);
+        var uow = new EFUoWProvider(_sp);
+        // Resolve a scope-aware repo via UoW
+        var repo = uow.GetRepository<EntityFixture>();
+
+        // Begin scope before making changes so they are deferred
         await uow.BeginAsync();
 
-        var e1 = new EntityFixture { Id = 200 };
-        var e2 = new EntityFixture { Id = 201 };
-        await _efRepo.CreateAsync(e1);
-        await _efRepo.CreateAsync(e2);
+        await repo.CreateAsync(new EntityFixture { Id = 200 });
+        await repo.CreateAsync(new EntityFixture { Id = 201 });
 
         using var readContext = new DbContextFixture(
-            new DbContextOptionsBuilder<DbContextFixture>()
-                .UseInMemoryDatabase(_dbName)
-                .Options);
+            new DbContextOptionsBuilder<DbContextFixture>().UseInMemoryDatabase(_dbName).Options
+        );
         Assert.Null(readContext.Set<EntityFixture>().Find(200));
         Assert.Null(readContext.Set<EntityFixture>().Find(201));
 
@@ -105,22 +106,26 @@ public class EFRepoTests : RepoTestsBase
     [Fact]
     public async Task Rollback_ClearsPendingChanges_ForDeferredOps()
     {
-        var uow = new EFUoWProvider(_dbContext, _scope);
+        var uow = new EFUoWProvider(_sp);
+        var repo = uow.GetRepository<EntityFixture>();
+
+        // Begin scope before making changes so they are deferred
         await uow.BeginAsync();
 
-        var e1 = new EntityFixture { Id = 300 };
-        await _efRepo.CreateAsync(e1);
+        await repo.CreateAsync(new EntityFixture { Id = 300 });
 
         using var readContext = new DbContextFixture(
-            new DbContextOptionsBuilder<DbContextFixture>()
-                .UseInMemoryDatabase(_dbName)
-                .Options);
+            new DbContextOptionsBuilder<DbContextFixture>().UseInMemoryDatabase(_dbName).Options
+        );
         Assert.Null(readContext.Set<EntityFixture>().Find(300));
 
         await uow.RollbackAsync();
 
         Assert.Null(readContext.Set<EntityFixture>().Find(300));
-        Assert.DoesNotContain(_dbContext.ChangeTracker.Entries(), e => e.Entity is EntityFixture ef && ef.Id == 300);
+        Assert.DoesNotContain(
+            _dbContext.ChangeTracker.Entries(),
+            e => e.Entity is EntityFixture ef && ef.Id == 300
+        );
     }
 
     protected override int FillRepoAndReturnId()

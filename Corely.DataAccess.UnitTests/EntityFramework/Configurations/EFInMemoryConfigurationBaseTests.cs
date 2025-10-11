@@ -7,9 +7,7 @@ public class EFInMemoryConfigurationBaseTests : EFConfigurationTestsBase
 {
     private class MockInMemoryEFConfiguration : EFInMemoryConfigurationBase
     {
-        public override void Configure(DbContextOptionsBuilder optionsBuilder)
-        {
-        }
+        public override void Configure(DbContextOptionsBuilder optionsBuilder) { }
     }
 
     private readonly MockInMemoryEFConfiguration _mockInMemoryEFConfiguration = new();

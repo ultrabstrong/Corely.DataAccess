@@ -3,7 +3,8 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Corely.DataAccess.Demo.Configurations;
 
-public class MySqlDemoConfiguration(string connectionString) : EFMySqlConfigurationBase(connectionString)
+public class MySqlDemoConfiguration(string connectionString)
+    : EFMySqlConfigurationBase(connectionString)
 {
     public override void Configure(DbContextOptionsBuilder optionsBuilder)
     {

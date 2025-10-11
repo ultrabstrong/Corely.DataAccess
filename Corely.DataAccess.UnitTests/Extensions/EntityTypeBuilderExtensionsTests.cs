@@ -16,7 +16,6 @@ public class EntityTypeBuilderExtensionsTests
 
     private readonly EFDbTypesFixture _efDbTypes = new();
 
-
     [Fact]
     public void ConfigureTable_SetsTableName()
     {

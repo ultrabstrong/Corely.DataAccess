@@ -10,6 +10,7 @@ public class MockRepoTests : RepoTestsBase
 {
     private readonly MockRepo<EntityFixture> _mockRepo = new();
     protected override IRepo<EntityFixture> Repo => _mockRepo;
+
     protected override int FillRepoAndReturnId()
     {
         var entityList = Fixture.CreateMany<EntityFixture>(5).ToList();
@@ -17,12 +18,16 @@ public class MockRepoTests : RepoTestsBase
         return entityList[2].Id;
     }
 
-    private EntityFixture NewEntity(int id, DateTime? createdUtc = null, DateTime? modifiedUtc = null)
-        => new()
+    private EntityFixture NewEntity(
+        int id,
+        DateTime? createdUtc = null,
+        DateTime? modifiedUtc = null
+    ) =>
+        new()
         {
             Id = id,
             CreatedUtc = createdUtc ?? default,
-            ModifiedUtc = modifiedUtc
+            ModifiedUtc = modifiedUtc,
         };
 
     [Fact]

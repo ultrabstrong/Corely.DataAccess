@@ -8,13 +8,10 @@ public class EFMySqlConfigurationBaseTests : EFConfigurationTestsBase
 {
     private class MockMySqlEFConfiguration : EFMySqlConfigurationBase
     {
-        public MockMySqlEFConfiguration(string connectionString) : base(connectionString)
-        {
-        }
+        public MockMySqlEFConfiguration(string connectionString)
+            : base(connectionString) { }
 
-        public override void Configure(DbContextOptionsBuilder optionsBuilder)
-        {
-        }
+        public override void Configure(DbContextOptionsBuilder optionsBuilder) { }
     }
 
     private readonly Fixture _fixture = new();

@@ -1,4 +1,5 @@
 using AutoFixture;
+using Corely.DataAccess.EntityFramework.Repos;
 using Corely.DataAccess.Extensions;
 using Corely.DataAccess.Interfaces.Repos;
 using Corely.DataAccess.UnitTests.Fixtures;
@@ -15,9 +16,13 @@ public class EFRepoAdapterTests
         services.AddLogging();
 
         // Register DbContexts
-        services.AddDbContext<DbContextFixture>(o => o.UseInMemoryDatabase(new Fixture().Create<string>()));
+        services.AddDbContext<DbContextFixture>(o =>
+            o.UseInMemoryDatabase(new Fixture().Create<string>())
+        );
         if (registerSecondContext)
-            services.AddDbContext<AnotherDbContextFixture>(o => o.UseInMemoryDatabase(new Fixture().Create<string>()));
+            services.AddDbContext<AnotherDbContextFixture>(o =>
+                o.UseInMemoryDatabase(new Fixture().Create<string>())
+            );
 
         // Wire Corely repos + adapters + map
         services.AutoRegisterEntityFrameworkProviders();
@@ -52,7 +57,8 @@ public class EFRepoAdapterTests
 
         // Seed through EF Core directly
         var ctx = provider.GetRequiredService<DbContextFixture>();
-        ctx.Set<EntityFixture>().AddRange(new EntityFixture { Id = 1 }, new EntityFixture { Id = 2 });
+        ctx.Set<EntityFixture>()
+            .AddRange(new EntityFixture { Id = 1 }, new EntityFixture { Id = 2 });
         await ctx.SaveChangesAsync();
 
         var list = await repo.ListAsync();
@@ -65,7 +71,7 @@ public class EFRepoAdapterTests
     public void AutoMap_FindsRegisteredContextForEntity()
     {
         using var provider = BuildProvider();
-        var map = provider.GetRequiredService<IEntityContextMap>();
+        var map = provider.GetRequiredService<IEFContextResolver>();
         var ctxType = map.GetContextTypeFor(typeof(EntityFixture));
         Assert.Equal(typeof(DbContextFixture), ctxType);
     }
@@ -74,7 +80,9 @@ public class EFRepoAdapterTests
     public void AutoMap_ThrowsForAmbiguousContext()
     {
         using var provider = BuildProvider(registerSecondContext: true);
-        var map = provider.GetRequiredService<IEntityContextMap>();
-        Assert.Throws<InvalidOperationException>(() => map.GetContextTypeFor(typeof(EntityFixture)));
+        var map = provider.GetRequiredService<IEFContextResolver>();
+        Assert.Throws<InvalidOperationException>(() =>
+            map.GetContextTypeFor(typeof(EntityFixture))
+        );
     }
 }
