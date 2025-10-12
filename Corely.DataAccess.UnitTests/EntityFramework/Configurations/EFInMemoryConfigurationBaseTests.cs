@@ -3,7 +3,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Corely.DataAccess.UnitTests.EntityFramework.Configurations;
 
-public class EFInMemoryConfigurationBaseTests : DbContextBaseTests
+public class EFInMemoryConfigurationBaseTests : EFConfigurationTestsBase
 {
     private class MockInMemoryEFConfiguration : EFInMemoryConfigurationBase
     {

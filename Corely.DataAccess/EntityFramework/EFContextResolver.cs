@@ -1,7 +1,7 @@
-using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.DependencyInjection;
 using System.Collections.Concurrent;
 using System.Reflection;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace Corely.DataAccess.EntityFramework;
 

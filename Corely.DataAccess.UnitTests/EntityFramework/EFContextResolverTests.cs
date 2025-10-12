@@ -1,9 +1,9 @@
+using System.Reflection;
 using AutoFixture;
 using Corely.DataAccess.EntityFramework;
 using Corely.DataAccess.Extensions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
-using System.Reflection;
 
 namespace Corely.DataAccess.UnitTests.EntityFramework;
 
