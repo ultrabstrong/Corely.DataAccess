@@ -4,7 +4,7 @@ using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
 namespace Corely.DataAccess.Demo;
 
-internal class DemoEntityConfiguration(IEFDbTypes efDbTypes)
+internal class DemoEntityConfigurations(IEFDbTypes efDbTypes)
     : EntityConfigurationBase<DemoEntity, int>(efDbTypes)
 {
     protected override void ConfigureInternal(EntityTypeBuilder<DemoEntity> builder)
