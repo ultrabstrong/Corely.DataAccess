@@ -96,6 +96,8 @@ internal class Program
 
     static async Task UnitOfWorkExample(IServiceProvider provider)
     {
+        // NOTE : UoW doesn't work with in memory databases (sqlite in-memory included)
+        // because they don't support transactions / nested transactions
         Console.WriteLine();
         Console.WriteLine("Unit of Work Example:");
 
@@ -106,22 +108,36 @@ internal class Program
         try
         {
             await uowProvider.BeginAsync();
-
             await repo.CreateAsync(new DemoEntity { Name = "Lion" });
             // also works for services using repos
             await service.CreateAsync(new DemoEntity { Name = "Tiger" });
             // also works across multiple DbContexts
             await repo2.CreateAsync(new DemoEntity2 { Name = "Cyan" });
+            throw new Exception();
+        }
+        catch
+        {
+            await uowProvider.RollbackAsync();
+        }
 
-            var context1Entities = await repo.ListAsync();
-            Console.WriteLine(
-                $"Context 1 entities before UoW finalize: {string.Join(", ", context1Entities.Select(e => e.Name))}"
-            );
-            var context2Entities = await repo2.ListAsync();
-            Console.WriteLine(
-                $"Context 2 entities before UoW finalize: {string.Join(", ", context2Entities.Select(e => e.Name))}"
-            );
-            //throw new Exception(); // uncomment to throw and see rollback functionality
+        var context1EntitiesAfterRollback = await repo.ListAsync();
+        Console.WriteLine(
+            $"Context 1 entities after rollback: {string.Join(", ", context1EntitiesAfterRollback.Select(e => e.Name))}"
+        );
+
+        var context2EntitiesAfterRollback = await repo2.ListAsync();
+        Console.WriteLine(
+            $"Context 2 entities after rollback: {string.Join(", ", context2EntitiesAfterRollback.Select(e => e.Name))}"
+        );
+
+        try
+        {
+            await uowProvider.BeginAsync();
+            await repo.CreateAsync(new DemoEntity { Name = "Lion" });
+            // also works for services using repos
+            await service.CreateAsync(new DemoEntity { Name = "Tiger" });
+            // also works across multiple DbContexts
+            await repo2.CreateAsync(new DemoEntity2 { Name = "Cyan" });
             await uowProvider.CommitAsync();
         }
         catch
@@ -129,14 +145,14 @@ internal class Program
             await uowProvider.RollbackAsync();
         }
 
-        var context1EntitiesAfter = await repo.ListAsync();
+        var context1EntitiesAfterCommit = await repo.ListAsync();
         Console.WriteLine(
-            $"Context 1 entities after UoW finalize: {string.Join(", ", context1EntitiesAfter.Select(e => e.Name))}"
+            $"Context 1 entities after commit: {string.Join(", ", context1EntitiesAfterCommit.Select(e => e.Name))}"
         );
 
-        var context2EntitiesAfter = await repo2.ListAsync();
+        var context2EntitiesAfterCommit = await repo2.ListAsync();
         Console.WriteLine(
-            $"Context 2 entities after UoW finalize: {string.Join(", ", context2EntitiesAfter.Select(e => e.Name))}"
+            $"Context 2 entities after commit: {string.Join(", ", context2EntitiesAfterCommit.Select(e => e.Name))}"
         );
     }
 }

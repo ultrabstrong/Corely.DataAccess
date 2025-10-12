@@ -54,7 +54,7 @@ var recent = await repo.ListAsync(
 ```
 
 ## Create/Update/Delete Semantics
-- CreateAsync: single or batch; inside an active UoW, changes are deferred until CommitAsync.
+- CreateAsync: single or batch; inside an active UoW, changes are deferred until CommitAsync (unless using in-Memory db).
 - UpdateAsync: updates tracked entity by key; sets ModifiedUtc when IHasModifiedUtc.
 - DeleteAsync: removes by reference/key.
 

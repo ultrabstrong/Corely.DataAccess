@@ -36,29 +36,6 @@ catch
 - Without an active UoW, repositories save immediately (typical for single operation calls).
 - With an active UoW, repositories defer persistence until CommitAsync().
 
-### Repository Resolution Timing
-Both early and late resolution are supported however early is the common case with DI patterns
-
-Resolve before Begin (early):
-```csharp
-var uow = sp.GetRequiredService<IUnitOfWorkProvider>();
-var repo = sp.GetRequiredService<IRepo<MyEntity>>();
-await uow.BeginAsync();
-await repo.CreateAsync(new MyEntity { /* ... */ });
-await uow.CommitAsync();
-```
-
-Resolve after Begin (late):
-```csharp
-var uow = sp.GetRequiredService<IUnitOfWorkProvider>();
-await uow.BeginAsync();
-var repo = sp.GetRequiredService<IRepo<MyEntity>>();
-await repo.CreateAsync(new MyEntity { /* ... */ });
-await uow.CommitAsync();
-```
-
-In both cases, the repository participates in the active UoW and its changes are included in the commit for the current DI scope. If the underlying provider supports transactions, the UoW will commit them together; otherwise it still batches SaveChanges.
-
 ## Registration
 Register repositories and the UoW with the provided helper:
 ```csharp

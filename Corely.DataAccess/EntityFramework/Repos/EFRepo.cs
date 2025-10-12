@@ -25,8 +25,6 @@ internal sealed class EFRepo<TContext, TEntity> : EFReadonlyRepo<TContext, TEnti
         );
     }
 
-    private bool ShouldSaveChanges() => (!_uow.IsActive) && DbContext.ChangeTracker.HasChanges();
-
     public async Task<TEntity> CreateAsync(
         TEntity entity,
         CancellationToken cancellationToken = default
@@ -34,9 +32,12 @@ internal sealed class EFRepo<TContext, TEntity> : EFReadonlyRepo<TContext, TEnti
     {
         if (_uow.IsActive)
             _uow.Register(DbContext);
+
         var newEntity = await DbSet.AddAsync(entity, cancellationToken);
-        if (ShouldSaveChanges())
-            await DbContext.SaveChangesAsync(cancellationToken);
+
+        // Always flush to obtain generated keys; if a UoW is active, this occurs within its transaction.
+        await DbContext.SaveChangesAsync(cancellationToken);
+
         return newEntity.Entity;
     }
 
@@ -47,9 +48,11 @@ internal sealed class EFRepo<TContext, TEntity> : EFReadonlyRepo<TContext, TEnti
     {
         if (_uow.IsActive)
             _uow.Register(DbContext);
+
         await DbSet.AddRangeAsync(entities, cancellationToken);
-        if (ShouldSaveChanges())
-            await DbContext.SaveChangesAsync(cancellationToken);
+
+        // Always flush to persist and obtain generated keys in batch scenarios as well.
+        await DbContext.SaveChangesAsync(cancellationToken);
     }
 
     public async Task UpdateAsync(TEntity entity, CancellationToken cancellationToken = default)
@@ -91,16 +94,16 @@ internal sealed class EFRepo<TContext, TEntity> : EFReadonlyRepo<TContext, TEnti
             }
         }
 
-        if (ShouldSaveChanges())
-            await DbContext.SaveChangesAsync(cancellationToken);
+        await DbContext.SaveChangesAsync(cancellationToken);
     }
 
     public async Task DeleteAsync(TEntity entity, CancellationToken cancellationToken = default)
     {
         if (_uow.IsActive)
             _uow.Register(DbContext);
+
         DbSet.Remove(entity);
-        if (ShouldSaveChanges())
-            await DbContext.SaveChangesAsync(cancellationToken);
+
+        await DbContext.SaveChangesAsync(cancellationToken);
     }
 }

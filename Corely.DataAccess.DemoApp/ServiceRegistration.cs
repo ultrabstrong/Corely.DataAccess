@@ -22,10 +22,10 @@ internal static class ServiceRegistration
         // ================= 2. REGISTER EF CONFIGURATION (CONNECTION) =================
 
         // Uncomment to use In-Memory database
-        var context1Config = new InMemoryDemoConfiguration("DemoDbContext1");
+        //var context1Config = new InMemoryDemoConfiguration("DemoDbContext1");
 
         // Uncomment to use Sqlite
-        // var context1Config = new SqliteDemoConfiguration("Data Source=:memory:;Cache=Shared");
+        var context1Config = new SqliteDemoConfiguration("Data Source=:memory:;Cache=Shared");
 
         // Uncomment to use MySQL
         // var context1Config = new MySqlDemoConfiguration("Server=localhost;Port=3306;Database=dataaccessdemo;Uid=root;Pwd=admin;");
@@ -33,7 +33,10 @@ internal static class ServiceRegistration
         // This is just to demonstrate multiple DbContexts with different configurations
         // Most of the time you will only need one DbContext and one IEFConfiguration
         // Can use a different configuration to test multiple connection scenarios
-        var context2Config = context1Config;
+        //var context2Config = context1Config;
+        var context2Config = new MySqlDemoConfiguration(
+            "Server=localhost;Port=3306;Database=dataaccessdemo;Uid=root;Pwd=admin;"
+        );
 
         services.AddKeyedSingleton<IEFConfiguration>(
             ContextConfigurationKeys.CONTEXT_1_CONFIG,

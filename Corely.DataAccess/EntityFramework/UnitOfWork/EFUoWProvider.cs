@@ -63,12 +63,7 @@ internal class EFUoWProvider : DisposeBase, IUnitOfWorkProvider
                 }
             }
 
-            foreach (var ctx in _contexts)
-            {
-                if (ctx.ChangeTracker.HasChanges())
-                    await ctx.SaveChangesAsync(cancellationToken);
-            }
-
+            // Repos now save as they go; just commit/cleanup transactions here
             foreach (var kv in _transactions)
             {
                 if (kv.Value != null)
