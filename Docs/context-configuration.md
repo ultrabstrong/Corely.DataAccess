@@ -1,6 +1,6 @@
-# Context Configuration (EFConfiguredDbContext)
+# Context Configuration (DbContextBase)
 
-EFConfiguredDbContext is a small base DbContext that removes common boilerplate:
+DbContextBase is a small base DbContext that removes common boilerplate:
 - Wires provider configuration via an IEFConfiguration instance in OnConfiguring
 - Discovers and applies entity configurations that derive from EntityConfigurationBase<>
 - Exposes two protected hooks so you can customize discovery and add extra model configuration
@@ -29,7 +29,7 @@ using Corely.DataAccess.EntityFramework;
 using Corely.DataAccess.EntityFramework.Configurations;
 using Microsoft.EntityFrameworkCore;
 
-public sealed class AppDbContext : EFConfiguredDbContext
+public sealed class AppDbContext : DbContextBase
 {
     public AppDbContext(IEFConfiguration ef) : base(ef) {}
     public AppDbContext(DbContextOptions<AppDbContext> opts, IEFConfiguration ef) : base(opts, ef) {}
@@ -85,14 +85,14 @@ protected override void ConfigureModel(ModelBuilder modelBuilder)
 ## Requirements and conventions
 - Discovered configuration classes must derive directly from EntityConfigurationBase<>, and have a constructor that accepts an IEFDbTypes.
 - If you don’t use EntityConfigurationBase<>, you can still override ConfigureModel to apply configuration manually.
-- IEFConfiguration must be registered in DI and provided to the context; EFConfiguredDbContext will call Configure only if options aren’t already configured.
+- IEFConfiguration must be registered in DI and provided to the context; DbContextBase will call Configure only if options aren’t already configured.
 
 ## Demo references
-- DemoDbContext and DemoDbContext2 in the demo project inherit EFConfiguredDbContext.
+- DemoDbContext and DemoDbContext2 in the demo project inherit DbContextBase.
 - Their entity configurations (e.g., DemoEntityConfiguration) are applied automatically at startup.
 
 ## When to use this base
-Use EFConfiguredDbContext when you want:
+Use DbContextBase when you want:
 - Consistent provider setup across contexts via IEFConfiguration
 - Automatic discovery of EntityConfigurationBase<> without repeating reflection logic
 - A clean place (ConfigureModel) to put small, context-specific tweaks

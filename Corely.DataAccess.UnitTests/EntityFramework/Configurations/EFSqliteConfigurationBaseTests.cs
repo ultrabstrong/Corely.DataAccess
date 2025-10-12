@@ -4,7 +4,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Corely.DataAccess.UnitTests.EntityFramework.Configurations;
 
-public class EFSqliteConfigurationBaseTests : EFConfigurationTestsBase
+public class EFSqliteConfigurationBaseTests : DbContextBaseTests
 {
     private class MockSqliteEFConfiguration : EFSqliteConfigurationBase
     {

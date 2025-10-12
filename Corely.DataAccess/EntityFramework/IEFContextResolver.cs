@@ -1,4 +1,4 @@
-﻿namespace Corely.DataAccess.EntityFramework.Repos;
+﻿namespace Corely.DataAccess.EntityFramework;
 
 internal interface IEFContextResolver
 {

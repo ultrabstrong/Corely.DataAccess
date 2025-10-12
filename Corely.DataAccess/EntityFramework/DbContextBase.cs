@@ -1,19 +1,19 @@
-using System.Reflection;
 using Corely.DataAccess.EntityFramework.Configurations;
 using Microsoft.EntityFrameworkCore;
+using System.Reflection;
 
 namespace Corely.DataAccess.EntityFramework;
 
-public abstract class EFConfiguredDbContext : DbContext
+public abstract class DbContextBase : DbContext
 {
     protected readonly IEFConfiguration EfConfiguration;
 
-    protected EFConfiguredDbContext(IEFConfiguration efConfiguration)
+    protected DbContextBase(IEFConfiguration efConfiguration)
     {
         EfConfiguration = efConfiguration;
     }
 
-    protected EFConfiguredDbContext(DbContextOptions options, IEFConfiguration efConfiguration)
+    protected DbContextBase(DbContextOptions options, IEFConfiguration efConfiguration)
         : base(options)
     {
         EfConfiguration = efConfiguration;

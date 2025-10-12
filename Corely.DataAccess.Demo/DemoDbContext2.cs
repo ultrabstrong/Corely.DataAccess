@@ -4,7 +4,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Corely.DataAccess.Demo;
 
-internal class DemoDbContext2 : EFConfiguredDbContext
+internal class DemoDbContext2 : DbContextBase
 {
     public DemoDbContext2(IEFConfiguration efConfiguration)
         : base(efConfiguration) { }

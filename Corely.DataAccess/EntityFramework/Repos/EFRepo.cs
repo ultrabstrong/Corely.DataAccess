@@ -9,8 +9,7 @@ namespace Corely.DataAccess.EntityFramework.Repos;
 internal sealed class EFRepo<TContext, TEntity>
     : EFReadonlyRepo<TContext, TEntity>,
         IRepo<TEntity>,
-        IEFScopeContextSetter,
-        IEFRepoContract<TEntity>
+        IEFScopeContextSetter
     where TContext : DbContext
     where TEntity : class
 {

@@ -5,9 +5,9 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Corely.DataAccess.UnitTests.EntityFramework;
 
-public class EFConfiguredDbContextTests
+public class DbContextBaseTests
 {
-    private sealed class TestDbContext : EFConfiguredDbContext
+    private sealed class TestDbContext : DbContextBase
     {
         public TestDbContext(IEFConfiguration ef)
             : base(ef) { }

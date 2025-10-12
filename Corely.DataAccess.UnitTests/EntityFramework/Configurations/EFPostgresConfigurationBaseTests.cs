@@ -4,7 +4,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Corely.DataAccess.UnitTests.EntityFramework.Configurations;
 
-public class EFPostgresConfigurationBaseTests : EFConfigurationTestsBase
+public class EFPostgresConfigurationBaseTests : DbContextBaseTests
 {
     private class MockPostgresEFConfiguration : EFPostgresConfigurationBase
     {

@@ -4,7 +4,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Corely.DataAccess.UnitTests.EntityFramework.Configurations;
 
-public class EFMySqlConfigurationBaseTests : EFConfigurationTestsBase
+public class EFMySqlConfigurationBaseTests : DbContextBaseTests
 {
     private class MockMySqlEFConfiguration : EFMySqlConfigurationBase
     {

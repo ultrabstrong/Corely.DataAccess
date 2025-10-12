@@ -1,3 +1,4 @@
+using Corely.DataAccess.EntityFramework;
 using Corely.DataAccess.EntityFramework.Repos;
 using Corely.DataAccess.EntityFramework.UnitOfWork;
 using Corely.DataAccess.Extensions;
