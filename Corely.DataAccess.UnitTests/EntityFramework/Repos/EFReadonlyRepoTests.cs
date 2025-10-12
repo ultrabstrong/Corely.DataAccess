@@ -45,4 +45,10 @@ public class EFReadonlyRepoTests : ReadonlyRepoTestsBase
 
     protected override int FillRepoAndReturnId() =>
         _dbContext.Set<EntityFixture>().Skip(1).First().Id;
+
+    [Fact]
+    public void EFReadonlyRepo_Implements_Public_Readonly_Interface()
+    {
+        Assert.IsAssignableFrom<IReadonlyRepo<EntityFixture>>(_efReadonlyRepo);
+    }
 }

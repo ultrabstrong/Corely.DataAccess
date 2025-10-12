@@ -51,11 +51,11 @@ public sealed class InMemoryAppConfiguration(string dbName) : EFInMemoryConfigur
 Learn more in the [Configurations](configurations.md) docs.
 
 ## 3) Create an Entity
-Optionally implement timestamp/id interfaces for helpers (CreatedUtc/ModifiedUtc, Id key):
+Optionally implement timestamp/id interfaces for helpers (CreatedUtc/ModifiedUtc, Id key). Entities are typically internal.
 ```csharp
 using Corely.DataAccess.Interfaces.Entities;
 
-public class TodoItem : IHasIdPk<int>, IHasCreatedUtc, IHasModifiedUtc
+internal class TodoItem : IHasIdPk<int>, IHasCreatedUtc, IHasModifiedUtc
 {
     public int Id { get; set; }
     public string Title { get; set; } = string.Empty;
@@ -71,7 +71,7 @@ To enable audit helpers and conventions, derive from `EntityConfigurationBase<>`
 using Corely.DataAccess.EntityFramework;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
-public sealed class TodoItemConfiguration(IEFDbTypes db) : EntityConfigurationBase<TodoItem, int>(db)
+internal sealed class TodoItemConfiguration(IEFDbTypes db) : EntityConfigurationBase<TodoItem, int>(db)
 {
     protected override void ConfigureInternal(EntityTypeBuilder<TodoItem> b)
         => b.Property(e => e.Title).IsRequired().HasMaxLength(200);
@@ -87,7 +87,7 @@ using Corely.DataAccess.EntityFramework;
 using Corely.DataAccess.EntityFramework.Configurations;
 using Microsoft.EntityFrameworkCore;
 
-public sealed class AppDbContext : EFConfiguredDbContext
+internal sealed class AppDbContext : EFConfiguredDbContext
 {
     public AppDbContext(IEFConfiguration ef) : base(ef) {}
     public AppDbContext(DbContextOptions<AppDbContext> opts, IEFConfiguration ef) : base(opts, ef) {}
@@ -99,7 +99,7 @@ See [Context Configuration](context-configuration.md) for extension hooks.
 
 Option B: implement the pattern directly
 ```csharp
-public sealed class AppDbContext : DbContext
+internal sealed class AppDbContext : DbContext
 {
     private readonly IEFConfiguration _ef;
     public AppDbContext(IEFConfiguration ef) { _ef = ef; }
@@ -131,7 +131,7 @@ Use the helper to wire repositories. Also register a provider configuration and 
 ```csharp
 var services = new ServiceCollection();
 services.AddSingleton<IEFConfiguration>(new SqliteAppConfiguration("Data Source=:memory:"));
-services.AddDbContext<AppDbContext>();
+services.AddDbContext<AppDbContext>(); // internal types are fine within your project
 
 // Repos + UoW (standard path)
 services.RegisterEntityFrameworkReposAndUoW();
@@ -158,7 +158,7 @@ var uow = sp.GetRequiredService<IUnitOfWorkProvider>();
 await uow.BeginAsync();
 try
 {
-    var uowRepo = uow.GetRepository<TodoItem>(); // enlist current scoped instance
+    var uowRepo = uow.GetRepository<TodoItem>(); // enlists the scoped instance in the current DI scope
     await uowRepo.CreateAsync(new TodoItem { Id = 2, Title = "Batch" });
     await uow.CommitAsync();
 }

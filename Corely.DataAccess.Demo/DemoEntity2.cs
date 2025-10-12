@@ -2,7 +2,7 @@
 
 namespace Corely.DataAccess.Demo;
 
-public class DemoEntity2 : IHasIdPk<int>, IHasCreatedUtc, IHasModifiedUtc
+internal class DemoEntity2 : IHasIdPk<int>, IHasCreatedUtc, IHasModifiedUtc
 {
     // Custom property ; need to configure manually
     public string Name { get; set; } = string.Empty;

@@ -10,61 +10,71 @@ internal sealed class EFRepoAdapter<TEntity> : IRepo<TEntity>, IEFScopeContextSe
 {
     private readonly IServiceProvider _serviceProvider;
     private readonly IEFContextResolver _entityMapper;
-    private readonly Lazy<object> _repoResolver; // holds EFRepo<TContext,TEntity>
+    private readonly Lazy<IRepo<TEntity>> _concrete; // EFRepo<TContext,TEntity>
 
     public EFRepoAdapter(IServiceProvider serviceProvider, IEFContextResolver entityMapper)
     {
         _serviceProvider = serviceProvider;
         _entityMapper = entityMapper;
-        _repoResolver = new Lazy<object>(() =>
+        _concrete = new Lazy<IRepo<TEntity>>(() =>
         {
             var ctxType = _entityMapper.GetContextTypeFor(typeof(TEntity));
             var concrete = typeof(EFRepo<,>).MakeGenericType(ctxType, typeof(TEntity));
-            return _serviceProvider.GetRequiredService(concrete);
+            return (IRepo<TEntity>)_serviceProvider.GetRequiredService(concrete);
         });
     }
 
-    private dynamic RepoResolver => _repoResolver.Value;
+    private IRepo<TEntity> Repo => _concrete.Value;
 
     public Task<TEntity> CreateAsync(
         TEntity entity,
         CancellationToken cancellationToken = default
-    ) => RepoResolver.CreateAsync(entity, cancellationToken);
+    ) => Repo.CreateAsync(entity, cancellationToken);
 
     public Task CreateAsync(
         IEnumerable<TEntity> entities,
         CancellationToken cancellationToken = default
-    ) => RepoResolver.CreateAsync(entities, cancellationToken);
+    ) => Repo.CreateAsync(entities, cancellationToken);
 
     public Task UpdateAsync(TEntity entity, CancellationToken cancellationToken = default) =>
-        RepoResolver.UpdateAsync(entity, cancellationToken);
+        Repo.UpdateAsync(entity, cancellationToken);
 
     public Task DeleteAsync(TEntity entity, CancellationToken cancellationToken = default) =>
-        RepoResolver.DeleteAsync(entity, cancellationToken);
+        Repo.DeleteAsync(entity, cancellationToken);
 
     public Task<TEntity?> GetAsync(
         Expression<Func<TEntity, bool>> query,
         Func<IQueryable<TEntity>, IOrderedQueryable<TEntity>>? orderBy = null,
         Func<IQueryable<TEntity>, IQueryable<TEntity>>? include = null,
         CancellationToken cancellationToken = default
-    ) => RepoResolver.GetAsync(query, orderBy, include, cancellationToken);
+    ) => Repo.GetAsync(query, orderBy, include, cancellationToken);
 
     public Task<bool> AnyAsync(
         Expression<Func<TEntity, bool>> query,
         CancellationToken cancellationToken = default
-    ) => RepoResolver.AnyAsync(query, cancellationToken);
+    ) => Repo.AnyAsync(query, cancellationToken);
 
     public Task<int> CountAsync(
         Expression<Func<TEntity, bool>>? query = null,
         CancellationToken cancellationToken = default
-    ) => RepoResolver.CountAsync(query, cancellationToken);
+    ) => Repo.CountAsync(query, cancellationToken);
 
     public Task<List<TEntity>> ListAsync(
         Expression<Func<TEntity, bool>>? query = null,
         Func<IQueryable<TEntity>, IOrderedQueryable<TEntity>>? orderBy = null,
         Func<IQueryable<TEntity>, IQueryable<TEntity>>? include = null,
         CancellationToken cancellationToken = default
-    ) => RepoResolver.ListAsync(query, orderBy, include, cancellationToken);
+    ) => Repo.ListAsync(query, orderBy, include, cancellationToken);
 
-    public void SetScope(EFUnitOfWorkScope scope) => RepoResolver.SetScope(scope);
+    public void SetScope(EFUnitOfWorkScope scope)
+    {
+        if (_concrete.Value is IEFScopeContextSetter setter)
+        {
+            setter.SetScope(scope);
+            return;
+        }
+        throw new InvalidOperationException(
+            $"Resolved concrete repo '{_concrete.Value.GetType().FullName}' does not implement {nameof(IEFScopeContextSetter)}."
+        );
+    }
 }

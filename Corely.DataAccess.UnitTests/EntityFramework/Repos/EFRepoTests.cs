@@ -129,6 +129,12 @@ public class EFRepoTests : RepoTestsBase
         );
     }
 
+    [Fact]
+    public void EFRepo_Implements_ScopeSetter_Interface()
+    {
+        Assert.IsAssignableFrom<IEFScopeContextSetter>(_efRepo);
+    }
+
     protected override int FillRepoAndReturnId()
     {
         _dbContext.Set<EntityFixture>().AddRange(Fixture.CreateMany<EntityFixture>(5));

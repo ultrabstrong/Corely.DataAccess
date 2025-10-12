@@ -9,43 +9,43 @@ internal sealed class EFReadonlyRepoAdapter<TEntity> : IReadonlyRepo<TEntity>
 {
     private readonly IServiceProvider _serviceProvider;
     private readonly IEFContextResolver _entityMapper;
-    private readonly Lazy<object> _repoResolver; // EFReadonlyRepo<TContext,TEntity>
+    private readonly Lazy<IReadonlyRepo<TEntity>> _repo; // EFReadonlyRepo<TContext,TEntity> via contract
 
     public EFReadonlyRepoAdapter(IServiceProvider serviceProvider, IEFContextResolver entityMapper)
     {
         _serviceProvider = serviceProvider;
         _entityMapper = entityMapper;
-        _repoResolver = new Lazy<object>(() =>
+        _repo = new Lazy<IReadonlyRepo<TEntity>>(() =>
         {
             var ctxType = _entityMapper.GetContextTypeFor(typeof(TEntity));
             var concrete = typeof(EFReadonlyRepo<,>).MakeGenericType(ctxType, typeof(TEntity));
-            return _serviceProvider.GetRequiredService(concrete);
+            return (IReadonlyRepo<TEntity>)_serviceProvider.GetRequiredService(concrete);
         });
     }
 
-    private dynamic RepoResolver => _repoResolver.Value;
+    private IReadonlyRepo<TEntity> Repo => _repo.Value;
 
     public Task<TEntity?> GetAsync(
         Expression<Func<TEntity, bool>> query,
         Func<IQueryable<TEntity>, IOrderedQueryable<TEntity>>? orderBy = null,
         Func<IQueryable<TEntity>, IQueryable<TEntity>>? include = null,
         CancellationToken cancellationToken = default
-    ) => RepoResolver.GetAsync(query, orderBy, include, cancellationToken);
+    ) => Repo.GetAsync(query, orderBy, include, cancellationToken);
 
     public Task<bool> AnyAsync(
         Expression<Func<TEntity, bool>> query,
         CancellationToken cancellationToken = default
-    ) => RepoResolver.AnyAsync(query, cancellationToken);
+    ) => Repo.AnyAsync(query, cancellationToken);
 
     public Task<int> CountAsync(
         Expression<Func<TEntity, bool>>? query = null,
         CancellationToken cancellationToken = default
-    ) => RepoResolver.CountAsync(query, cancellationToken);
+    ) => Repo.CountAsync(query, cancellationToken);
 
     public Task<List<TEntity>> ListAsync(
         Expression<Func<TEntity, bool>>? query = null,
         Func<IQueryable<TEntity>, IOrderedQueryable<TEntity>>? orderBy = null,
         Func<IQueryable<TEntity>, IQueryable<TEntity>>? include = null,
         CancellationToken cancellationToken = default
-    ) => RepoResolver.ListAsync(query, orderBy, include, cancellationToken);
+    ) => Repo.ListAsync(query, orderBy, include, cancellationToken);
 }

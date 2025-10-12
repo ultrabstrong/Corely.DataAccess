@@ -20,7 +20,8 @@ dotnet add package Corely.DataAccess
 Choose a provider configuration (see [Configurations](configurations.md)) and register one or more DbContexts. Adapters automatically resolve the correct DbContext for each entity at runtime.
 ```csharp
 services.AddSingleton<IEFConfiguration>(new SqliteDemoConfiguration()); // or MySql/Postgres/InMemory
-services.AddDbContext<MyDbContext>();
+services.AddDbContext<MyDbContext>(); 
+// Can register multiple DbContexts if needed
 
 // Repos + UoW (standard path)
 services.RegisterEntityFrameworkReposAndUoW();
