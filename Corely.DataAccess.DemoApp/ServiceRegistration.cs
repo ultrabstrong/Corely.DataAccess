@@ -20,24 +20,29 @@ internal static class ServiceRegistration
         services.AddLogging(b => b.AddConsole().SetMinimumLevel(LogLevel.Debug));
 
         // ================= 2. REGISTER EF CONFIGURATION (CONNECTION) =================
-        // Use In-Memory database
-        services.AddSingleton<IEFConfiguration>(_ => new InMemoryDemoConfiguration(
-            Guid.NewGuid().ToString()
-        ));
+
+        // Uncomment to use In-Memory database
+        var context1Config = new InMemoryDemoConfiguration("DemoDbContext1");
 
         // Uncomment to use Sqlite
-        /*
-        services.AddSingleton<IEFConfiguration>(_ => new SqliteDemoConfiguration(
-            "Data Source=:memory:;Cache=Shared"
-        ));
-        */
+        // var context1Config = new SqliteDemoConfiguration("Data Source=:memory:;Cache=Shared");
 
         // Uncomment to use MySQL
-        /*
-        services.AddSingleton<IEFConfiguration>(_ => new MySqlDemoConfiguration(
-            "Server=localhost;Port=3306;Database=dataaccessdemo;Uid=root;Pwd=admin;"
-        ));
-        */
+        // var context1Config = new MySqlDemoConfiguration("Server=localhost;Port=3306;Database=dataaccessdemo;Uid=root;Pwd=admin;");
+
+        // This is just to demonstrate multiple DbContexts with different configurations
+        // Most of the time you will only need one DbContext and one IEFConfiguration
+        // Can use a different configuration to test multiple connection scenarios
+        var context2Config = context1Config;
+
+        services.AddKeyedSingleton<IEFConfiguration>(
+            ContextConfigurationKeys.CONTEXT_1_CONFIG,
+            context1Config
+        );
+        services.AddKeyedSingleton<IEFConfiguration>(
+            ContextConfigurationKeys.CONTEXT_2_CONFIG,
+            context2Config
+        );
 
         // ================= 3. REGISTER REPOSITORIES, UNIT OF WORK, AND CONTEXTS =================
         services.RegisterEntityFrameworkReposAndUoW();
@@ -59,47 +64,47 @@ internal static class ServiceRegistration
 
     /*
      * Demo-only method to ensure schemas exist for the specified DbContext types.
+     * Works whether contexts share the same database/connection or use different ones.
      * In a real application, use migrations and proper deployment practices.
      */
     private static void EnsureSchemas(IServiceProvider provider, params Type[] dbContextTypes)
     {
         using var scope = provider.CreateScope();
-        DbContext? first = null;
         foreach (var ctxType in dbContextTypes)
         {
             var ctx = (DbContext)scope.ServiceProvider.GetRequiredService(ctxType);
-            if (first is null)
-            {
-                // Create database and this context's tables
-                ctx.Database.EnsureCreated();
-                first = ctx;
-                continue;
-            }
-
-            // For additional contexts on an existing relational DB, create their tables explicitly
-            // because EnsureCreated is a no-op if the database exists.
-            // For non-relational providers (e.g., InMemory), fall back to EnsureCreated.
             try
             {
                 var creator = ctx.Database.GetService<IDatabaseCreator>();
                 if (creator is IRelationalDatabaseCreator relational)
                 {
-                    try
+                    // If the database doesn't exist for this context, create it (and its tables)
+                    if (!relational.Exists())
                     {
-                        relational.CreateTables();
+                        ctx.Database.EnsureCreated();
                     }
-                    catch
-                    { /* ignore if exists */
+                    else
+                    {
+                        // Database exists; attempt to create tables for this context's model
+                        try
+                        {
+                            relational.CreateTables();
+                        }
+                        catch
+                        {
+                            // Ignore if tables already exist or provider throws for existing tables
+                        }
                     }
                 }
                 else
                 {
+                    // Non-relational providers (e.g., InMemory)
                     ctx.Database.EnsureCreated();
                 }
             }
             catch
             {
-                // As a last resort, attempt EnsureCreated
+                // Fallback
                 ctx.Database.EnsureCreated();
             }
         }

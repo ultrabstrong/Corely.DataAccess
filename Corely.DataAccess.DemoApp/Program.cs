@@ -25,32 +25,32 @@ internal class Program
         {
             await repo.CreateAsync(
                 [
-                    new DemoEntity { Name = "Alpha" },
-                    new DemoEntity { Name = "Beta" },
-                    new DemoEntity { Name = "Gamma" },
+                    new DemoEntity { Name = "Cat" },
+                    new DemoEntity { Name = "Dog" },
+                    new DemoEntity { Name = "Fox" },
                 ]
             );
         }
         var list = await repo.ListAsync();
         Console.WriteLine($"Entities: {string.Join(", ", list.Select(e => e.Name))}");
 
-        var toUpdate = (await repo.ListAsync(e => e.Name == "Beta")).FirstOrDefault();
+        var toUpdate = (await repo.ListAsync(e => e.Name == "Dog")).FirstOrDefault();
         if (toUpdate != null)
         {
-            toUpdate.Name = "Beta (updated)";
+            toUpdate.Name = "Dog (updated)";
             await repo.UpdateAsync(toUpdate);
         }
         list = await repo.ListAsync();
         Console.WriteLine($"Entities after update: {string.Join(", ", list.Select(e => e.Name))}");
 
-        var toDelete = (await repo.ListAsync(e => e.Name == "Alpha")).FirstOrDefault();
+        var toDelete = (await repo.ListAsync(e => e.Name == "Cat")).FirstOrDefault();
         if (toDelete != null)
             await repo.DeleteAsync(toDelete);
         list = await repo.ListAsync();
         Console.WriteLine($"Entities after delete: {string.Join(", ", list.Select(e => e.Name))}");
 
         var repo2 = provider.GetRequiredService<IRepo<DemoEntity2>>();
-        await repo2.CreateAsync(new DemoEntity2 { Name = "Entity2 - One" });
+        await repo2.CreateAsync(new DemoEntity2 { Name = "Red" });
 
         var list2 = await repo2.ListAsync();
         Console.WriteLine(
@@ -69,13 +69,14 @@ internal class Program
 
         var totalCount = await readonlyRepo.CountAsync();
         Console.WriteLine($"Total entity count: {totalCount}");
-        var gammaCount = await readonlyRepo.CountAsync(e => e.Name.Contains("Gamma"));
-        Console.WriteLine($"Entities with 'Gamma' in name: {gammaCount}");
 
-        bool exists = await readonlyRepo.AnyAsync(e => e.Name.Contains("Gamma"));
-        Console.WriteLine($"Entity with 'Gamma' in name exists: {exists}");
+        bool exists = await readonlyRepo.AnyAsync(e => e.Name.Contains("Fox"));
+        Console.WriteLine($"Entity with 'Fox' in name exists: {exists}");
 
-        var entity = await readonlyRepo.GetAsync(e => e.Name.Contains("Beta"));
+        var count = await readonlyRepo.CountAsync(e => e.Name.Contains("Fox"));
+        Console.WriteLine($"Entities with 'Fox' in name: {count}");
+
+        var entity = await readonlyRepo.GetAsync(e => e.Name.Contains("Dog"));
         Console.WriteLine($"Retrieved entity: {entity?.Name}");
     }
 
@@ -100,18 +101,25 @@ internal class Program
 
         var repo = provider.GetRequiredService<IRepo<DemoEntity>>();
         var service = provider.GetRequiredService<DemoService>();
+        var repo2 = provider.GetRequiredService<IRepo<DemoEntity2>>();
         var uowProvider = provider.GetRequiredService<IUnitOfWorkProvider>();
         try
         {
             await uowProvider.BeginAsync();
 
-            await repo.CreateAsync(new DemoEntity { Name = "fromRepo" });
+            await repo.CreateAsync(new DemoEntity { Name = "Lion" });
             // also works for services using repos
-            await service.CreateAsync(new DemoEntity { Name = "fromService" });
+            await service.CreateAsync(new DemoEntity { Name = "Tiger" });
+            // also works across multiple DbContexts
+            await repo2.CreateAsync(new DemoEntity2 { Name = "Cyan" });
 
-            var entitiesBeforeCommit = await repo.ListAsync();
+            var context1Entities = await repo.ListAsync();
             Console.WriteLine(
-                $"Entities before UoW commit: {string.Join(", ", entitiesBeforeCommit.Select(e => e.Name))}"
+                $"Context 1 entities before UoW finalize: {string.Join(", ", context1Entities.Select(e => e.Name))}"
+            );
+            var context2Entities = await repo2.ListAsync();
+            Console.WriteLine(
+                $"Context 2 entities before UoW finalize: {string.Join(", ", context2Entities.Select(e => e.Name))}"
             );
             //throw new Exception(); // uncomment to throw and see rollback functionality
             await uowProvider.CommitAsync();
@@ -121,9 +129,14 @@ internal class Program
             await uowProvider.RollbackAsync();
         }
 
-        var entitiesAfterCommit = await repo.ListAsync();
+        var context1EntitiesAfter = await repo.ListAsync();
         Console.WriteLine(
-            $"Entities after UoW commit: {string.Join(", ", entitiesAfterCommit.Select(e => e.Name))}"
+            $"Context 1 entities after UoW finalize: {string.Join(", ", context1EntitiesAfter.Select(e => e.Name))}"
+        );
+
+        var context2EntitiesAfter = await repo2.ListAsync();
+        Console.WriteLine(
+            $"Context 2 entities after UoW finalize: {string.Join(", ", context2EntitiesAfter.Select(e => e.Name))}"
         );
     }
 }
