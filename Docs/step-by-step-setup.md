@@ -84,27 +84,38 @@ Provider-agnostic: depends on `IEFConfiguration` and discovers configurations.
 ```csharp
 internal sealed class AppDbContext : DbContext
 {
-    private readonly IEFConfiguration _ef;
-    public AppDbContext(IEFConfiguration ef) { _ef = ef; }
-    public AppDbContext(DbContextOptions<AppDbContext> opts, IEFConfiguration ef) : base(opts) { _ef = ef; }
+    private readonly IEFConfiguration _efConfiguration;
+
+    public AppDbContext(IEFConfiguration efConfiguration) 
+        : base() { _efConfiguration = efConfiguration; }
+
+    public AppDbContext(DbContextOptions<AppDbContext> opts, IEFConfiguration efConfiguration) 
+        : base(opts) { _efConfiguration = efConfiguration; }
 
     public DbSet<TodoItem> TodoItems => Set<TodoItem>();
-
-    protected override void OnConfiguring(DbContextOptionsBuilder b)
+    
+    protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
     {
-        if (!b.IsConfigured) _ef.Configure(b);
+        _efConfiguration.Configure(optionsBuilder);
     }
 
-    protected override void OnModelCreating(ModelBuilder mb)
+    protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
-        // Explicit configurations may be preferred when assembly has multiple contexts
-        var cfgType = typeof(EntityConfigurationBase<>);
-        var cfgs = GetType().Assembly.GetTypes()
-            .Where(t => t.IsClass && !t.IsAbstract && t.BaseType?.IsGenericType == true && t.BaseType.GetGenericTypeDefinition() == cfgType);
-        foreach (var t in cfgs)
+        // Explicit configs may be preferred for assemblies with multiple contexts
+        var configTypes = new Type[] { typeof(EntityConfigurationBase<>), typeof(EntityConfigurationBase<,>) };
+        foreach (var configType in configTypes)
         {
-            var cfg = Activator.CreateInstance(t, _ef.GetDbTypes());
-            mb.ApplyConfiguration((dynamic)cfg!);
+            var configs = GetType().Assembly.GetTypes()
+            .Where(t => t.IsClass
+                && !t.IsAbstract
+                && t.BaseType?.IsGenericType == true
+                && t.BaseType.GetGenericTypeDefinition() == configType);
+
+            foreach (var t in configs)
+            {
+                var cfg = Activator.CreateInstance(t, _efConfiguration.GetDbTypes());
+                modelBuilder.ApplyConfiguration((dynamic)cfg!);
+            }
         }
     }
 }
