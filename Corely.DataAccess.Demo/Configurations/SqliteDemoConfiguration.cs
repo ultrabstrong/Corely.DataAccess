@@ -8,14 +8,9 @@ public class SqliteDemoConfiguration : EFSqliteConfigurationBase
 {
     private readonly SqliteConnection _connection;
 
-    public SqliteDemoConfiguration(string databaseName = ":memory:")
-        : base(
-            databaseName == ":memory:"
-                ? "Data Source=:memory:;Cache=Shared"
-                : $"Data Source={databaseName}"
-        )
+    public SqliteDemoConfiguration(string connectionString)
+        : base(connectionString)
     {
-        // Keep a shared in-memory connection open so multiple contexts can participate
         _connection = new SqliteConnection(connectionString);
         _connection.Open();
     }

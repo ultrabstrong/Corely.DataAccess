@@ -81,23 +81,6 @@ internal sealed class TodoItemConfiguration(IEFDbTypes db) : EntityConfiguration
 ## 5) Create Your DbContext
 Provider-agnostic: depends on `IEFConfiguration` and discovers configurations.
 
-Option A: inherit from DbContextBase (recommended)
-```csharp
-using Corely.DataAccess.EntityFramework;
-using Corely.DataAccess.EntityFramework.Configurations;
-using Microsoft.EntityFrameworkCore;
-
-internal sealed class AppDbContext : DbContextBase
-{
-    public AppDbContext(IEFConfiguration ef) : base(ef) {}
-    public AppDbContext(DbContextOptions<AppDbContext> opts, IEFConfiguration ef) : base(opts, ef) {}
-
-    public DbSet<TodoItem> TodoItems => Set<TodoItem>();
-}
-```
-See [Context Configuration](context-configuration.md) for extension hooks.
-
-Option B: implement the pattern directly
 ```csharp
 internal sealed class AppDbContext : DbContext
 {

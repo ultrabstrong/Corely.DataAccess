@@ -1,6 +1,7 @@
 ﻿using Corely.DataAccess.EntityFramework.Configurations;
 using Corely.DataAccess.Interfaces.Entities;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Metadata;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
 namespace Corely.DataAccess.Extensions;
@@ -43,11 +44,16 @@ public static class EntityTypeBuilderExtensions
     {
         if (typeof(IHasCreatedUtc).IsAssignableFrom(typeof(TEntity)))
         {
-            builder
+            var prop = builder
                 .Property(e => ((IHasCreatedUtc)e).CreatedUtc)
                 .HasColumnType(efDbTypes.UTCDateColumnType)
                 .HasDefaultValueSql(efDbTypes.UTCDateColumnDefaultValue)
+                .ValueGeneratedOnAdd()
                 .IsRequired();
+
+            // Ensure EF doesn’t try to write CreatedUtc on insert/update; let the DB set it once
+            prop.Metadata.SetBeforeSaveBehavior(PropertySaveBehavior.Ignore);
+            prop.Metadata.SetAfterSaveBehavior(PropertySaveBehavior.Ignore);
         }
 
         return builder;

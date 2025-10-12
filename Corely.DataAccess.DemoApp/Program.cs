@@ -23,21 +23,39 @@ internal class Program
         var repo = provider.GetRequiredService<IRepo<DemoEntity>>();
         if (!await repo.AnyAsync(e => e.Id > 0))
         {
-            await repo.CreateAsync(new DemoEntity { Id = 1, Name = "Alpha" });
-            await repo.CreateAsync(new DemoEntity { Id = 2, Name = "Beta" });
-            await repo.CreateAsync(new DemoEntity { Id = 3, Name = "Gamma" });
+            await repo.CreateAsync(
+                [
+                    new DemoEntity { Name = "Alpha" },
+                    new DemoEntity { Name = "Beta" },
+                    new DemoEntity { Name = "Gamma" },
+                ]
+            );
         }
         var list = await repo.ListAsync();
         Console.WriteLine($"Entities: {string.Join(", ", list.Select(e => e.Name))}");
 
-        await repo.UpdateAsync(new DemoEntity { Id = 2, Name = "Beta (updated)" });
+        var toUpdate = (await repo.ListAsync(e => e.Name == "Beta")).FirstOrDefault();
+        if (toUpdate != null)
+        {
+            toUpdate.Name = "Beta (updated)";
+            await repo.UpdateAsync(toUpdate);
+        }
         list = await repo.ListAsync();
         Console.WriteLine($"Entities after update: {string.Join(", ", list.Select(e => e.Name))}");
 
         var toDelete = (await repo.ListAsync(e => e.Name == "Alpha")).FirstOrDefault();
-        await repo.DeleteAsync(toDelete!);
+        if (toDelete != null)
+            await repo.DeleteAsync(toDelete);
         list = await repo.ListAsync();
         Console.WriteLine($"Entities after delete: {string.Join(", ", list.Select(e => e.Name))}");
+
+        var repo2 = provider.GetRequiredService<IRepo<DemoEntity2>>();
+        await repo2.CreateAsync(new DemoEntity2 { Name = "Entity2 - One" });
+
+        var list2 = await repo2.ListAsync();
+        Console.WriteLine(
+            $"Entities in second repo: {string.Join(", ", list2.Select(e => e.Name))}"
+        );
     }
 
     static async Task ReadonlyRepoExample(IServiceProvider provider)
@@ -87,9 +105,9 @@ internal class Program
         {
             await uowProvider.BeginAsync();
 
-            await repo.CreateAsync(new DemoEntity { Id = 5, Name = "fromRepo" });
+            await repo.CreateAsync(new DemoEntity { Name = "fromRepo" });
             // also works for services using repos
-            await service.CreateAsync(new DemoEntity { Id = 6, Name = "fromService" });
+            await service.CreateAsync(new DemoEntity { Name = "fromService" });
 
             var entitiesBeforeCommit = await repo.ListAsync();
             Console.WriteLine(
