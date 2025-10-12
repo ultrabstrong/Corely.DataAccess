@@ -1,4 +1,5 @@
 using System.Reflection;
+using Corely.Common.Extensions;
 using Corely.DataAccess.EntityFramework.Configurations;
 using Microsoft.EntityFrameworkCore;
 
@@ -10,13 +11,13 @@ public abstract class DbContextBase : DbContext
 
     protected DbContextBase(IEFConfiguration efConfiguration)
     {
-        EfConfiguration = efConfiguration;
+        EfConfiguration = efConfiguration.ThrowIfNull(nameof(efConfiguration));
     }
 
     protected DbContextBase(DbContextOptions options, IEFConfiguration efConfiguration)
         : base(options)
     {
-        EfConfiguration = efConfiguration;
+        EfConfiguration = efConfiguration.ThrowIfNull(nameof(efConfiguration));
     }
 
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)

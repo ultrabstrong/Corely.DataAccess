@@ -80,24 +80,20 @@ internal class Program
         Console.WriteLine();
         Console.WriteLine("Unit of Work Example:");
 
-        var preUoWRepo = provider.GetRequiredService<IRepo<DemoEntity>>();
-
+        var repo = provider.GetRequiredService<IRepo<DemoEntity>>();
+        var service = provider.GetRequiredService<DemoService>();
         var uowProvider = provider.GetRequiredService<IUnitOfWorkProvider>();
         try
         {
             await uowProvider.BeginAsync();
 
-            // Note: the UoW provider supports repos from multiple contexts
-            // if the underlying database supports nested transactions.
-            var postUoWRepo = uowProvider.GetRepository<DemoEntity>();
-            await postUoWRepo.CreateAsync(new DemoEntity { Id = 4, Name = "PostUoW" });
+            await repo.CreateAsync(new DemoEntity { Id = 5, Name = "fromRepo" });
+            // also works for services using repos
+            await service.CreateAsync(new DemoEntity { Id = 6, Name = "fromService" });
 
-            // Note : changes made via pre-UoW repo are also included in the UoW transaction
-            await preUoWRepo.CreateAsync(new DemoEntity { Id = 5, Name = "PreUoW" });
-
-            var entitiesBeforeCommit = await preUoWRepo.ListAsync();
+            var entitiesBeforeCommit = await repo.ListAsync();
             Console.WriteLine(
-                $"Entities from Unscoped Repo before UoW commit: {string.Join(", ", entitiesBeforeCommit.Select(e => e.Name))}"
+                $"Entities before UoW commit: {string.Join(", ", entitiesBeforeCommit.Select(e => e.Name))}"
             );
             //throw new Exception(); // uncomment to throw and see rollback functionality
             await uowProvider.CommitAsync();
@@ -107,9 +103,9 @@ internal class Program
             await uowProvider.RollbackAsync();
         }
 
-        var entitiesAfterCommit = await preUoWRepo.ListAsync();
+        var entitiesAfterCommit = await repo.ListAsync();
         Console.WriteLine(
-            $"Entities from Unscoped Repo after UoW commit: {string.Join(", ", entitiesAfterCommit.Select(e => e.Name))}"
+            $"Entities after UoW commit: {string.Join(", ", entitiesAfterCommit.Select(e => e.Name))}"
         );
     }
 }

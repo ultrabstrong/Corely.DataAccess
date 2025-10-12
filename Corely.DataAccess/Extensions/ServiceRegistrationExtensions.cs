@@ -20,7 +20,10 @@ public static class ServiceRegistrationExtensions
         services.AddScoped(typeof(EFRepo<,>), typeof(EFRepo<,>));
         services.AddScoped(typeof(IReadonlyRepo<>), typeof(EFReadonlyRepoAdapter<>));
         services.AddScoped(typeof(IRepo<>), typeof(EFRepoAdapter<>));
-        services.AddScoped<IUnitOfWorkProvider, EFUoWProvider>();
+
+        // Register a single scoped EFUoWProvider instance per scope and expose it via the interface
+        services.AddScoped<EFUoWProvider>();
+        services.AddScoped<IUnitOfWorkProvider>(sp => sp.GetRequiredService<EFUoWProvider>());
         return services;
     }
 

@@ -7,6 +7,4 @@ public interface IUnitOfWorkProvider
     Task BeginAsync(CancellationToken cancellationToken = default);
     Task CommitAsync(CancellationToken cancellationToken = default);
     Task RollbackAsync(CancellationToken cancellationToken = default);
-    IRepo<TEntity> GetRepository<TEntity>()
-        where TEntity : class;
 }

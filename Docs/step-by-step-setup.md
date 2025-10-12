@@ -135,9 +135,11 @@ services.AddDbContext<AppDbContext>(); // internal types are fine within your pr
 
 // Repos + UoW (standard path)
 services.RegisterEntityFrameworkReposAndUoW();
+```
 
-// For provider‑free unit tests, you can instead do:
-// services.RegisterMockReposAndUoW();
+For provider‑free unit tests, you can instead do:
+```csharp
+services.RegisterMockReposAndUoW();
 ```
 
 ## 7) Use a Repository
@@ -158,8 +160,8 @@ var uow = sp.GetRequiredService<IUnitOfWorkProvider>();
 await uow.BeginAsync();
 try
 {
-    var uowRepo = uow.GetRepository<TodoItem>(); // enlists the scoped instance in the current DI scope
-    await uowRepo.CreateAsync(new TodoItem { Id = 2, Title = "Batch" });
+    var repo = sp.GetRequiredService<IRepo<TodoItem>>();
+    await repo.CreateAsync(new TodoItem { Id = 2, Title = "Batch" });
     await uow.CommitAsync();
 }
 catch

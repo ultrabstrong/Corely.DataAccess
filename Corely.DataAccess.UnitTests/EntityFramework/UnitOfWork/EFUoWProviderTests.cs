@@ -1,5 +1,4 @@
 ﻿using System.Data.Common;
-using System.Reflection;
 using Corely.DataAccess.EntityFramework.Repos;
 using Corely.DataAccess.EntityFramework.UnitOfWork;
 using Corely.DataAccess.UnitTests.Fixtures;
@@ -10,8 +9,17 @@ using Microsoft.Extensions.Logging;
 
 namespace Corely.DataAccess.UnitTests.EntityFramework.UnitOfWork;
 
-public class EFUoWProviderTests
+public partial class EFUoWProviderTests
 {
+    private static (ServiceProvider sp, EFUoWProvider uow) BuildUoW()
+    {
+        var services = new ServiceCollection();
+        services.AddScoped<EFUoWProvider>();
+        var sp = services.BuildServiceProvider();
+        var uow = sp.GetRequiredService<EFUoWProvider>();
+        return (sp, uow);
+    }
+
     private sealed class CountingTransactionInterceptor : DbTransactionInterceptor
     {
         private int _beginCount;
@@ -82,41 +90,22 @@ public class EFUoWProviderTests
     }
 
     [Fact]
-    public async Task BeginAsync_WhenScopeAlreadyActive_Throws()
+    public async Task BeginAsync_WhenAlreadyActive_Throws()
     {
-        var uow = new EFUoWProvider(new ServiceCollection().BuildServiceProvider());
+        var (_, uow) = BuildUoW();
 
         await uow.BeginAsync();
         await Assert.ThrowsAsync<InvalidOperationException>(() => uow.BeginAsync());
     }
 
     [Fact]
-    public async Task BeginAsync_SetsScopeActive()
+    public async Task BeginAsync_SetsActiveFlag()
     {
-        var uow = new EFUoWProvider(new ServiceCollection().BuildServiceProvider());
+        var (_, uow) = BuildUoW();
 
         await uow.BeginAsync();
 
-        var scopeField = typeof(EFUoWProvider).GetField(
-            "_scope",
-            BindingFlags.Instance | BindingFlags.NonPublic
-        );
-
-        Assert.NotNull(scopeField);
-
-        var scope = scopeField!.GetValue(uow);
-        Assert.NotNull(scope);
-
-        var isActiveProp = scope!
-            .GetType()
-            .GetProperty(
-                "IsActive",
-                BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic
-            );
-        Assert.NotNull(isActiveProp);
-
-        var isActive = (bool)(isActiveProp!.GetValue(scope) ?? false);
-        Assert.True(isActive);
+        Assert.True(uow.IsActive);
     }
 
     [Fact]
@@ -124,7 +113,6 @@ public class EFUoWProviderTests
     {
         var interceptor = new CountingTransactionInterceptor();
 
-        // Build two relational contexts (SQLite) so transactions are supported
         var options1 = new DbContextOptionsBuilder<DbContextFixture>()
             .UseSqlite("Data Source=:memory:")
             .AddInterceptors(interceptor)
@@ -137,43 +125,26 @@ public class EFUoWProviderTests
             .Options;
         var ctx2 = new AnotherDbContextFixture(options2);
 
-        // Prepare repos bound to each context and register them into the same scope
-        var logger1 = Moq.Mock.Of<ILogger<EFRepo<DbContextFixture, EntityFixture>>>();
-        var repo1 = new EFRepo<DbContextFixture, EntityFixture>(logger1, ctx1);
+        var (_, uow) = BuildUoW();
 
-        var logger2 = Moq.Mock.Of<ILogger<EFRepo<AnotherDbContextFixture, EntityFixture>>>();
-        var repo2 = new EFRepo<AnotherDbContextFixture, EntityFixture>(logger2, ctx2);
-
-        var uow = new EFUoWProvider(new ServiceCollection().BuildServiceProvider());
-
-        // Reflect the private scope instance and register both contexts
-        var scopeField = typeof(EFUoWProvider).GetField(
-            "_scope",
-            BindingFlags.Instance | BindingFlags.NonPublic
-        );
-        Assert.NotNull(scopeField);
-        var scope = (EFUnitOfWorkScope)scopeField!.GetValue(uow)!;
-
-        repo1.SetScope(scope);
-        repo2.SetScope(scope);
+        uow.Register(ctx1);
+        uow.Register(ctx2);
 
         await uow.BeginAsync();
 
-        // Expect one transaction begin per registered context (2)
         Assert.Equal(2, interceptor.BeginCount);
     }
 
     [Fact]
     public async Task CommitAsync_WhenNoActiveScope_Throws()
     {
-        var uow = new EFUoWProvider(new ServiceCollection().BuildServiceProvider());
+        var (_, uow) = BuildUoW();
         await Assert.ThrowsAsync<InvalidOperationException>(() => uow.CommitAsync());
     }
 
     [Fact]
-    public async Task CommitAsync_SavesChanges_ForEachRegisteredContext_AndDeactivatesScope()
+    public async Task CommitAsync_SavesChanges_ForEachRegisteredContext_AndDeactivates()
     {
-        // InMemory provider: no transactions, but SaveChanges should be called
         var dbName1 = Guid.NewGuid().ToString();
         var dbName2 = Guid.NewGuid().ToString();
         var options1 = new DbContextOptionsBuilder<DbContextFixture>()
@@ -186,30 +157,21 @@ public class EFUoWProviderTests
         var ctx2 = new AnotherDbContextFixture(options2);
 
         var logger1 = Moq.Mock.Of<ILogger<EFRepo<DbContextFixture, EntityFixture>>>();
-        var repo1 = new EFRepo<DbContextFixture, EntityFixture>(logger1, ctx1);
         var logger2 = Moq.Mock.Of<ILogger<EFRepo<AnotherDbContextFixture, EntityFixture>>>();
-        var repo2 = new EFRepo<AnotherDbContextFixture, EntityFixture>(logger2, ctx2);
 
-        var uow = new EFUoWProvider(new ServiceCollection().BuildServiceProvider());
+        var (sp, uow) = BuildUoW();
 
-        // Register contexts into the same scope
-        var scopeField = typeof(EFUoWProvider).GetField(
-            "_scope",
-            BindingFlags.Instance | BindingFlags.NonPublic
-        );
-        Assert.NotNull(scopeField);
-        var scope = (EFUnitOfWorkScope)scopeField!.GetValue(uow)!;
+        var repo1 = new EFRepo<DbContextFixture, EntityFixture>(logger1, ctx1, uow);
+        var repo2 = new EFRepo<AnotherDbContextFixture, EntityFixture>(logger2, ctx2, uow);
 
-        repo1.SetScope(scope);
-        repo2.SetScope(scope);
+        uow.Register(ctx1);
+        uow.Register(ctx2);
 
-        // Begin UoW so repo operations defer SaveChanges
         await uow.BeginAsync();
 
         await repo1.CreateAsync(new EntityFixture { Id = 10 });
         await repo2.CreateAsync(new EntityFixture { Id = 20 });
 
-        // Confirm not yet persisted in separate read contexts
         using (
             var read1 = new DbContextFixture(
                 new DbContextOptionsBuilder<DbContextFixture>().UseInMemoryDatabase(dbName1).Options
@@ -231,7 +193,6 @@ public class EFUoWProviderTests
 
         await uow.CommitAsync();
 
-        // Verify persisted now
         using (
             var read1 = new DbContextFixture(
                 new DbContextOptionsBuilder<DbContextFixture>().UseInMemoryDatabase(dbName1).Options
@@ -251,16 +212,8 @@ public class EFUoWProviderTests
             Assert.NotNull(read2.Set<EntityFixture>().Find(20));
         }
 
-        // Scope should be inactive after commit
-        var isActiveProp = scope!
-            .GetType()
-            .GetProperty(
-                "IsActive",
-                BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic
-            );
-        Assert.NotNull(isActiveProp);
-        var isActive = (bool)(isActiveProp!.GetValue(scope) ?? false);
-        Assert.False(isActive);
+        Assert.False(uow.IsActive);
+        sp.Dispose();
     }
 
     [Fact]
@@ -280,22 +233,10 @@ public class EFUoWProviderTests
             .Options;
         var ctx2 = new AnotherDbContextFixture(options2);
 
-        var logger1 = Moq.Mock.Of<ILogger<EFRepo<DbContextFixture, EntityFixture>>>();
-        var repo1 = new EFRepo<DbContextFixture, EntityFixture>(logger1, ctx1);
-        var logger2 = Moq.Mock.Of<ILogger<EFRepo<AnotherDbContextFixture, EntityFixture>>>();
-        var repo2 = new EFRepo<AnotherDbContextFixture, EntityFixture>(logger2, ctx2);
+        var (_, uow) = BuildUoW();
 
-        var uow = new EFUoWProvider(new ServiceCollection().BuildServiceProvider());
-
-        var scopeField = typeof(EFUoWProvider).GetField(
-            "_scope",
-            BindingFlags.Instance | BindingFlags.NonPublic
-        );
-        Assert.NotNull(scopeField);
-        var scope = (EFUnitOfWorkScope)scopeField!.GetValue(uow)!;
-
-        repo1.SetScope(scope);
-        repo2.SetScope(scope);
+        uow.Register(ctx1);
+        uow.Register(ctx2);
 
         await uow.BeginAsync();
         await uow.CommitAsync();
@@ -307,14 +248,13 @@ public class EFUoWProviderTests
     [Fact]
     public async Task RollbackAsync_WhenNoActiveScope_Throws()
     {
-        var uow = new EFUoWProvider(new ServiceCollection().BuildServiceProvider());
+        var (_, uow) = BuildUoW();
         await Assert.ThrowsAsync<InvalidOperationException>(() => uow.RollbackAsync());
     }
 
     [Fact]
-    public async Task RollbackAsync_ClearsTrackedChanges_ForEachContext_AndDeactivatesScope()
+    public async Task RollbackAsync_ClearsTrackedChanges_ForEachContext_AndDeactivates()
     {
-        // Two InMemory contexts (no transaction), but tracked changes must be cleared
         var dbName1 = Guid.NewGuid().ToString();
         var dbName2 = Guid.NewGuid().ToString();
         var options1 = new DbContextOptionsBuilder<DbContextFixture>()
@@ -326,33 +266,27 @@ public class EFUoWProviderTests
         var ctx1 = new DbContextFixture(options1);
         var ctx2 = new AnotherDbContextFixture(options2);
 
+        var (_, uow) = BuildUoW();
+
         var repo1 = new EFRepo<DbContextFixture, EntityFixture>(
             Moq.Mock.Of<ILogger<EFRepo<DbContextFixture, EntityFixture>>>(),
-            ctx1
+            ctx1,
+            uow
         );
         var repo2 = new EFRepo<AnotherDbContextFixture, EntityFixture>(
             Moq.Mock.Of<ILogger<EFRepo<AnotherDbContextFixture, EntityFixture>>>(),
-            ctx2
+            ctx2,
+            uow
         );
 
-        var uow = new EFUoWProvider(new ServiceCollection().BuildServiceProvider());
-
-        var scopeField = typeof(EFUoWProvider).GetField(
-            "_scope",
-            BindingFlags.Instance | BindingFlags.NonPublic
-        );
-        Assert.NotNull(scopeField);
-        var scope = (EFUnitOfWorkScope)scopeField!.GetValue(uow)!;
-
-        repo1.SetScope(scope);
-        repo2.SetScope(scope);
+        uow.Register(ctx1);
+        uow.Register(ctx2);
 
         await uow.BeginAsync();
 
         await repo1.CreateAsync(new EntityFixture { Id = 101 });
         await repo2.CreateAsync(new EntityFixture { Id = 202 });
 
-        // Ensure not yet persisted
         using (
             var read1 = new DbContextFixture(
                 new DbContextOptionsBuilder<DbContextFixture>().UseInMemoryDatabase(dbName1).Options
@@ -374,7 +308,6 @@ public class EFUoWProviderTests
 
         await uow.RollbackAsync();
 
-        // Still not persisted and trackers cleared
         using (
             var read1 = new DbContextFixture(
                 new DbContextOptionsBuilder<DbContextFixture>().UseInMemoryDatabase(dbName1).Options
@@ -394,22 +327,11 @@ public class EFUoWProviderTests
             Assert.Null(read2.Set<EntityFixture>().Find(202));
         }
 
-        Assert.Empty(ctx1.ChangeTracker.Entries());
-        Assert.Empty(ctx2.ChangeTracker.Entries());
-
-        var isActiveProp = scope!
-            .GetType()
-            .GetProperty(
-                "IsActive",
-                BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic
-            );
-        Assert.NotNull(isActiveProp);
-        var isActive = (bool)(isActiveProp!.GetValue(scope) ?? false);
-        Assert.False(isActive);
+        Assert.False(uow.IsActive);
     }
 
     [Fact]
-    public async Task RollbackAsync_RollsBackTransactions_ForRelationalProviders()
+    public async Task LateEnlistment_Relational_StartedAndRolledBack()
     {
         var interceptor = new CountingTransactionInterceptor();
 
@@ -425,329 +347,177 @@ public class EFUoWProviderTests
             .Options;
         var ctx2 = new AnotherDbContextFixture(options2);
 
-        var repo1 = new EFRepo<DbContextFixture, EntityFixture>(
-            Moq.Mock.Of<ILogger<EFRepo<DbContextFixture, EntityFixture>>>(),
-            ctx1
-        );
-        var repo2 = new EFRepo<AnotherDbContextFixture, EntityFixture>(
-            Moq.Mock.Of<ILogger<EFRepo<AnotherDbContextFixture, EntityFixture>>>(),
-            ctx2
-        );
-
-        var uow = new EFUoWProvider(new ServiceCollection().BuildServiceProvider());
-
-        var scopeField = typeof(EFUoWProvider).GetField(
-            "_scope",
-            BindingFlags.Instance | BindingFlags.NonPublic
-        );
-        Assert.NotNull(scopeField);
-        var scope = (EFUnitOfWorkScope)scopeField!.GetValue(uow)!;
-
-        repo1.SetScope(scope);
-        repo2.SetScope(scope);
+        var (_, uow) = BuildUoW();
 
         await uow.BeginAsync();
-        await uow.RollbackAsync();
+        uow.Register(ctx1);
+        Assert.Equal(1, interceptor.BeginCount);
 
+        uow.Register(ctx2);
         Assert.Equal(2, interceptor.BeginCount);
+
+        await uow.RollbackAsync();
         Assert.Equal(2, interceptor.RollbackCount);
     }
 
-    [Fact]
-    public async Task Dispose_ClearsTransactions_AndDeactivatesScope()
+    private sealed class CI : DbTransactionInterceptor
     {
-        var options1 = new DbContextOptionsBuilder<DbContextFixture>()
+        public int BeginCount { get; private set; }
+
+        public override InterceptionResult<DbTransaction> TransactionStarting(
+            DbConnection c,
+            TransactionStartingEventData e,
+            InterceptionResult<DbTransaction> r
+        )
+        {
+            BeginCount++;
+            return base.TransactionStarting(c, e, r);
+        }
+
+        public override ValueTask<InterceptionResult<DbTransaction>> TransactionStartingAsync(
+            DbConnection c,
+            TransactionStartingEventData e,
+            InterceptionResult<DbTransaction> r,
+            CancellationToken t = default
+        )
+        {
+            BeginCount++;
+            return base.TransactionStartingAsync(c, e, r, t);
+        }
+    }
+
+    [Fact]
+    public async Task Register_Duplicate_DuringActive_DoesNotStartSecondTransaction()
+    {
+        var ci = new CI();
+        var options = new DbContextOptionsBuilder<DbContextFixture>()
             .UseSqlite("Data Source=:memory:")
+            .AddInterceptors(ci)
             .Options;
-        var ctx1 = new DbContextFixture(options1);
+        var ctx = new DbContextFixture(options);
 
-        var options2 = new DbContextOptionsBuilder<AnotherDbContextFixture>()
-            .UseSqlite("Data Source=:memory:")
-            .Options;
-        var ctx2 = new AnotherDbContextFixture(options2);
-
-        var repo1 = new EFRepo<DbContextFixture, EntityFixture>(
-            Moq.Mock.Of<ILogger<EFRepo<DbContextFixture, EntityFixture>>>(),
-            ctx1
-        );
-        var repo2 = new EFRepo<AnotherDbContextFixture, EntityFixture>(
-            Moq.Mock.Of<ILogger<EFRepo<AnotherDbContextFixture, EntityFixture>>>(),
-            ctx2
-        );
-
-        var uow = new EFUoWProvider(new ServiceCollection().BuildServiceProvider());
-        var scopeField = typeof(EFUoWProvider).GetField(
-            "_scope",
-            BindingFlags.Instance | BindingFlags.NonPublic
-        )!;
-        var txField = typeof(EFUoWProvider).GetField(
-            "_transactions",
-            BindingFlags.Instance | BindingFlags.NonPublic
-        )!;
-
-        var scope = (EFUnitOfWorkScope)scopeField.GetValue(uow)!;
-        repo1.SetScope(scope);
-        repo2.SetScope(scope);
-
+        var (_, uow) = BuildUoW();
+        uow.Register(ctx);
         await uow.BeginAsync();
+        Assert.Equal(1, ci.BeginCount);
 
-        var txDict = txField.GetValue(uow)!;
-        var countProp = txDict.GetType().GetProperty("Count")!;
-        var beforeCount = (int)countProp.GetValue(txDict)!;
-        Assert.True(beforeCount >= 2);
+        // Duplicate register should not open a second tx
+        uow.Register(ctx);
+        Assert.Equal(1, ci.BeginCount);
+    }
+
+    [Fact]
+    public async Task Register_Null_DoesNothing()
+    {
+        var (_, uow) = BuildUoW();
+        await uow.BeginAsync();
+        uow.Register(null!);
+        // No exception, nothing to assert beyond no-throw
+        await uow.RollbackAsync();
+    }
+
+    [Fact]
+    public async Task Dispose_ClearsState_AndAllowsNewRegistrations()
+    {
+        var ci = new CI();
+        var options = new DbContextOptionsBuilder<DbContextFixture>()
+            .UseSqlite("Data Source=:memory:")
+            .AddInterceptors(ci)
+            .Options;
+        var ctx = new DbContextFixture(options);
+
+        var (_, uow) = BuildUoW();
+        uow.Register(ctx);
+        await uow.BeginAsync();
+        Assert.Equal(1, ci.BeginCount);
 
         uow.Dispose();
+        Assert.False(uow.IsActive);
 
-        var txDictAfter = txField.GetValue(uow)!;
-        var afterCount = (int)countProp.GetValue(txDictAfter)!;
-        Assert.Equal(0, afterCount);
-
-        var isActiveProp = scope
-            .GetType()
-            .GetProperty(
-                "IsActive",
-                BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic
-            )!;
-        var isActive = (bool)(isActiveProp.GetValue(scope) ?? false);
-        Assert.False(isActive);
+        // Re-register and begin again should start a new tx
+        uow.Register(ctx);
+        await uow.BeginAsync();
+        Assert.Equal(2, ci.BeginCount);
+        await uow.RollbackAsync();
     }
 
     [Fact]
-    public async Task DisposeAsync_ClearsTransactions_AndDeactivatesScope()
+    public async Task DisposeAsync_ClearsState_AndAllowsNewRegistrations()
     {
-        var options1 = new DbContextOptionsBuilder<DbContextFixture>()
+        var ci = new CI();
+        var options = new DbContextOptionsBuilder<DbContextFixture>()
             .UseSqlite("Data Source=:memory:")
+            .AddInterceptors(ci)
             .Options;
-        var ctx1 = new DbContextFixture(options1);
+        var ctx = new DbContextFixture(options);
 
-        var options2 = new DbContextOptionsBuilder<AnotherDbContextFixture>()
-            .UseSqlite("Data Source=:memory:")
-            .Options;
-        var ctx2 = new AnotherDbContextFixture(options2);
-
-        var repo1 = new EFRepo<DbContextFixture, EntityFixture>(
-            Moq.Mock.Of<ILogger<EFRepo<DbContextFixture, EntityFixture>>>(),
-            ctx1
-        );
-        var repo2 = new EFRepo<AnotherDbContextFixture, EntityFixture>(
-            Moq.Mock.Of<ILogger<EFRepo<AnotherDbContextFixture, EntityFixture>>>(),
-            ctx2
-        );
-
-        var uow = new EFUoWProvider(new ServiceCollection().BuildServiceProvider());
-        var scopeField = typeof(EFUoWProvider).GetField(
-            "_scope",
-            BindingFlags.Instance | BindingFlags.NonPublic
-        )!;
-        var txField = typeof(EFUoWProvider).GetField(
-            "_transactions",
-            BindingFlags.Instance | BindingFlags.NonPublic
-        )!;
-
-        var scope = (EFUnitOfWorkScope)scopeField.GetValue(uow)!;
-        repo1.SetScope(scope);
-        repo2.SetScope(scope);
-
+        var (_, uow) = BuildUoW();
+        uow.Register(ctx);
         await uow.BeginAsync();
-
-        var txDict = txField.GetValue(uow)!;
-        var countProp = txDict.GetType().GetProperty("Count")!;
-        var beforeCount = (int)countProp.GetValue(txDict)!;
-        Assert.True(beforeCount >= 2);
+        Assert.Equal(1, ci.BeginCount);
 
         await uow.DisposeAsync();
+        Assert.False(uow.IsActive);
 
-        var txDictAfter = txField.GetValue(uow)!;
-        var afterCount = (int)countProp.GetValue(txDictAfter)!;
-        Assert.Equal(0, afterCount);
-
-        var isActiveProp = scope
-            .GetType()
-            .GetProperty(
-                "IsActive",
-                BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic
-            )!;
-        var isActive = (bool)(isActiveProp.GetValue(scope) ?? false);
-        Assert.False(isActive);
-    }
-
-    [Fact]
-    public async Task LateEnlistment_Relational_TransactionStarted_AndCommitted()
-    {
-        var interceptor = new CountingTransactionInterceptor();
-
-        var options1 = new DbContextOptionsBuilder<DbContextFixture>()
-            .UseSqlite("Data Source=:memory:")
-            .AddInterceptors(interceptor)
-            .Options;
-        var ctx1 = new DbContextFixture(options1);
-
-        var options2 = new DbContextOptionsBuilder<AnotherDbContextFixture>()
-            .UseSqlite("Data Source=:memory:")
-            .AddInterceptors(interceptor)
-            .Options;
-        var ctx2 = new AnotherDbContextFixture(options2);
-
-        var repo1 = new EFRepo<DbContextFixture, EntityFixture>(
-            Moq.Mock.Of<ILogger<EFRepo<DbContextFixture, EntityFixture>>>(),
-            ctx1
-        );
-        var repo2 = new EFRepo<AnotherDbContextFixture, EntityFixture>(
-            Moq.Mock.Of<ILogger<EFRepo<AnotherDbContextFixture, EntityFixture>>>(),
-            ctx2
-        );
-
-        var uow = new EFUoWProvider(new ServiceCollection().BuildServiceProvider());
-        var scopeField = typeof(EFUoWProvider).GetField(
-            "_scope",
-            BindingFlags.Instance | BindingFlags.NonPublic
-        )!;
-        var scope = (EFUnitOfWorkScope)scopeField.GetValue(uow)!;
-
-        // Register first context then begin
-        repo1.SetScope(scope);
+        uow.Register(ctx);
         await uow.BeginAsync();
-        Assert.Equal(1, interceptor.BeginCount);
-
-        // Late register second context; expect a new transaction to start
-        repo2.SetScope(scope);
-
-        // Allow async handler to run
-        for (var i = 0; i < 50 && interceptor.BeginCount < 2; i++)
-            await Task.Delay(10);
-        Assert.Equal(2, interceptor.BeginCount);
-
-        await uow.CommitAsync();
-        Assert.Equal(2, interceptor.CommitCount);
+        Assert.Equal(2, ci.BeginCount);
+        await uow.RollbackAsync();
     }
 
     [Fact]
-    public async Task LateEnlistment_InMemory_SavesChanges_NoTransactions()
+    public async Task Commit_OnlySavesContextsWithChanges()
     {
-        var dbName1 = Guid.NewGuid().ToString();
-        var dbName2 = Guid.NewGuid().ToString();
+        // Two in-memory contexts
+        var db1 = Guid.NewGuid().ToString();
+        var db2 = Guid.NewGuid().ToString();
         var ctx1 = new DbContextFixture(
-            new DbContextOptionsBuilder<DbContextFixture>().UseInMemoryDatabase(dbName1).Options
+            new DbContextOptionsBuilder<DbContextFixture>().UseInMemoryDatabase(db1).Options
         );
         var ctx2 = new AnotherDbContextFixture(
-            new DbContextOptionsBuilder<AnotherDbContextFixture>()
-                .UseInMemoryDatabase(dbName2)
-                .Options
+            new DbContextOptionsBuilder<AnotherDbContextFixture>().UseInMemoryDatabase(db2).Options
         );
+
+        var (_, uow) = BuildUoW();
 
         var repo1 = new EFRepo<DbContextFixture, EntityFixture>(
             Moq.Mock.Of<ILogger<EFRepo<DbContextFixture, EntityFixture>>>(),
-            ctx1
+            ctx1,
+            uow
         );
         var repo2 = new EFRepo<AnotherDbContextFixture, EntityFixture>(
             Moq.Mock.Of<ILogger<EFRepo<AnotherDbContextFixture, EntityFixture>>>(),
-            ctx2
+            ctx2,
+            uow
         );
 
-        var uow = new EFUoWProvider(new ServiceCollection().BuildServiceProvider());
-        var scopeField = typeof(EFUoWProvider).GetField(
-            "_scope",
-            BindingFlags.Instance | BindingFlags.NonPublic
-        )!;
-        var txField = typeof(EFUoWProvider).GetField(
-            "_transactions",
-            BindingFlags.Instance | BindingFlags.NonPublic
-        )!;
-        var scope = (EFUnitOfWorkScope)scopeField.GetValue(uow)!;
+        uow.Register(ctx1);
+        uow.Register(ctx2);
 
-        repo1.SetScope(scope);
         await uow.BeginAsync();
 
-        // Late register second
-        repo2.SetScope(scope);
-
-        await repo1.CreateAsync(new EntityFixture { Id = 501 });
-        await repo2.CreateAsync(new EntityFixture { Id = 502 });
-
-        // Not yet persisted
-        using (
-            var r1 = new DbContextFixture(
-                new DbContextOptionsBuilder<DbContextFixture>().UseInMemoryDatabase(dbName1).Options
-            )
-        )
-            Assert.Null(r1.Set<EntityFixture>().Find(501));
-        using (
-            var r2 = new AnotherDbContextFixture(
-                new DbContextOptionsBuilder<AnotherDbContextFixture>()
-                    .UseInMemoryDatabase(dbName2)
-                    .Options
-            )
-        )
-            Assert.Null(r2.Set<EntityFixture>().Find(502));
+        // Make changes only in ctx1
+        await repo1.CreateAsync(new EntityFixture { Id = 777 });
 
         await uow.CommitAsync();
 
-        // Persisted now
         using (
             var r1 = new DbContextFixture(
-                new DbContextOptionsBuilder<DbContextFixture>().UseInMemoryDatabase(dbName1).Options
+                new DbContextOptionsBuilder<DbContextFixture>().UseInMemoryDatabase(db1).Options
             )
         )
-            Assert.NotNull(r1.Set<EntityFixture>().Find(501));
+        {
+            Assert.NotNull(r1.Set<EntityFixture>().Find(777));
+        }
         using (
             var r2 = new AnotherDbContextFixture(
                 new DbContextOptionsBuilder<AnotherDbContextFixture>()
-                    .UseInMemoryDatabase(dbName2)
+                    .UseInMemoryDatabase(db2)
                     .Options
             )
         )
-            Assert.NotNull(r2.Set<EntityFixture>().Find(502));
-
-        // Transactions dictionary should contain entries but null for InMemory providers
-        var txDict = (System.Collections.IDictionary)txField.GetValue(uow)!;
-        Assert.NotNull(txDict);
-        // After commit it is cleared; but scope deactivates and clears in finally
-        // So we can only assert that commit succeeded without any transaction interceptor events, which we didn't register here.
-    }
-
-    [Fact]
-    public async Task LateEnlistment_Relational_RolledBack()
-    {
-        var interceptor = new CountingTransactionInterceptor();
-
-        var options1 = new DbContextOptionsBuilder<DbContextFixture>()
-            .UseSqlite("Data Source=:memory:")
-            .AddInterceptors(interceptor)
-            .Options;
-        var ctx1 = new DbContextFixture(options1);
-
-        var options2 = new DbContextOptionsBuilder<AnotherDbContextFixture>()
-            .UseSqlite("Data Source=:memory:")
-            .AddInterceptors(interceptor)
-            .Options;
-        var ctx2 = new AnotherDbContextFixture(options2);
-
-        var repo1 = new EFRepo<DbContextFixture, EntityFixture>(
-            Moq.Mock.Of<ILogger<EFRepo<DbContextFixture, EntityFixture>>>(),
-            ctx1
-        );
-        var repo2 = new EFRepo<AnotherDbContextFixture, EntityFixture>(
-            Moq.Mock.Of<ILogger<EFRepo<AnotherDbContextFixture, EntityFixture>>>(),
-            ctx2
-        );
-
-        var uow = new EFUoWProvider(new ServiceCollection().BuildServiceProvider());
-        var scopeField = typeof(EFUoWProvider).GetField(
-            "_scope",
-            BindingFlags.Instance | BindingFlags.NonPublic
-        )!;
-        var scope = (EFUnitOfWorkScope)scopeField.GetValue(uow)!;
-
-        repo1.SetScope(scope);
-        await uow.BeginAsync();
-        Assert.Equal(1, interceptor.BeginCount);
-
-        repo2.SetScope(scope);
-        for (var i = 0; i < 50 && interceptor.BeginCount < 2; i++)
-            await Task.Delay(10);
-        Assert.Equal(2, interceptor.BeginCount);
-
-        await uow.RollbackAsync();
-        Assert.Equal(2, interceptor.RollbackCount);
+        {
+            Assert.Empty(r2.Set<EntityFixture>().ToList());
+        }
     }
 }

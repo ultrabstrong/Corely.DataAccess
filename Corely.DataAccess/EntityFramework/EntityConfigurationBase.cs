@@ -1,4 +1,5 @@
-﻿using Corely.DataAccess.EntityFramework.Configurations;
+﻿using Corely.Common.Extensions;
+using Corely.DataAccess.EntityFramework.Configurations;
 using Corely.DataAccess.Extensions;
 using Corely.DataAccess.Interfaces.Entities;
 using Microsoft.EntityFrameworkCore;
@@ -13,7 +14,7 @@ public abstract class EntityConfigurationBase<TEntity, TKey> : IEntityTypeConfig
 
     protected EntityConfigurationBase(IEFDbTypes efDbTypes)
     {
-        EFDbTypes = efDbTypes;
+        EFDbTypes = efDbTypes.ThrowIfNull(nameof(efDbTypes));
     }
 
     public void Configure(EntityTypeBuilder<TEntity> builder)
@@ -36,7 +37,7 @@ public abstract class EntityConfigurationBase<TEntity> : IEntityTypeConfiguratio
 
     protected EntityConfigurationBase(IEFDbTypes efDbTypes)
     {
-        EFDbTypes = efDbTypes;
+        EFDbTypes = efDbTypes.ThrowIfNull(nameof(efDbTypes));
     }
 
     public void Configure(EntityTypeBuilder<TEntity> builder)

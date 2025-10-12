@@ -1,5 +1,6 @@
 using System.Collections.Concurrent;
 using System.Reflection;
+using Corely.Common.Extensions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -13,7 +14,7 @@ internal sealed class EFContextResolver : IEFContextResolver
 
     public EFContextResolver(IServiceProvider serviceProvider)
     {
-        _serviceProvider = serviceProvider;
+        _serviceProvider = serviceProvider.ThrowIfNull(nameof(serviceProvider));
         _contextTypes = new Lazy<Type[]>(DiscoverRegisteredContextTypes, isThreadSafe: true);
     }
 

@@ -29,6 +29,7 @@ public class EFRepoTests : RepoTestsBase
 
         var services = new ServiceCollection();
         services.AddLogging();
+        services.AddScoped<EFUoWProvider>();
         // Register DbContext type with same in-memory database name so EFContextResolver can resolve it safely
         services.AddDbContext<DbContextFixture>(o => o.UseInMemoryDatabase(_dbName));
         services.RegisterEntityFrameworkReposAndUoW();
@@ -36,7 +37,8 @@ public class EFRepoTests : RepoTestsBase
 
         _efRepo = new EFRepo<DbContextFixture, EntityFixture>(
             Moq.Mock.Of<ILogger<EFRepo<DbContextFixture, EntityFixture>>>(),
-            _dbContext
+            _dbContext,
+            _sp.GetRequiredService<EFUoWProvider>()
         );
     }
 
@@ -82,11 +84,9 @@ public class EFRepoTests : RepoTestsBase
     [Fact]
     public async Task DeferredPersistence_InsideUnitOfWork_DoesNotSaveUntilCommit()
     {
-        var uow = new EFUoWProvider(_sp);
-        // Resolve a scope-aware repo via UoW
-        var repo = uow.GetRepository<EntityFixture>();
+        var uow = _sp.GetRequiredService<EFUoWProvider>();
+        var repo = _sp.GetRequiredService<IRepo<EntityFixture>>();
 
-        // Begin scope before making changes so they are deferred
         await uow.BeginAsync();
 
         await repo.CreateAsync(new EntityFixture { Id = 200 });
@@ -107,10 +107,9 @@ public class EFRepoTests : RepoTestsBase
     [Fact]
     public async Task Rollback_ClearsPendingChanges_ForDeferredOps()
     {
-        var uow = new EFUoWProvider(_sp);
-        var repo = uow.GetRepository<EntityFixture>();
+        var uow = _sp.GetRequiredService<EFUoWProvider>();
+        var repo = _sp.GetRequiredService<IRepo<EntityFixture>>();
 
-        // Begin scope before making changes so they are deferred
         await uow.BeginAsync();
 
         await repo.CreateAsync(new EntityFixture { Id = 300 });
@@ -127,12 +126,6 @@ public class EFRepoTests : RepoTestsBase
             _dbContext.ChangeTracker.Entries(),
             e => e.Entity is EntityFixture ef && ef.Id == 300
         );
-    }
-
-    [Fact]
-    public void EFRepo_Implements_ScopeSetter_Interface()
-    {
-        Assert.IsAssignableFrom<IEFScopeContextSetter>(_efRepo);
     }
 
     protected override int FillRepoAndReturnId()

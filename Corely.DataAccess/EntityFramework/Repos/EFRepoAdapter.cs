@@ -1,11 +1,12 @@
 using System.Linq.Expressions;
+using Corely.Common.Extensions;
 using Corely.DataAccess.EntityFramework.UnitOfWork;
 using Corely.DataAccess.Interfaces.Repos;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace Corely.DataAccess.EntityFramework.Repos;
 
-internal sealed class EFRepoAdapter<TEntity> : IRepo<TEntity>, IEFScopeContextSetter
+internal sealed class EFRepoAdapter<TEntity> : IRepo<TEntity>
     where TEntity : class
 {
     private readonly IServiceProvider _serviceProvider;
@@ -14,8 +15,8 @@ internal sealed class EFRepoAdapter<TEntity> : IRepo<TEntity>, IEFScopeContextSe
 
     public EFRepoAdapter(IServiceProvider serviceProvider, IEFContextResolver entityMapper)
     {
-        _serviceProvider = serviceProvider;
-        _entityMapper = entityMapper;
+        _serviceProvider = serviceProvider.ThrowIfNull(nameof(serviceProvider));
+        _entityMapper = entityMapper.ThrowIfNull(nameof(entityMapper));
         _concrete = new Lazy<IRepo<TEntity>>(() =>
         {
             var ctxType = _entityMapper.GetContextTypeFor(typeof(TEntity));
@@ -65,16 +66,4 @@ internal sealed class EFRepoAdapter<TEntity> : IRepo<TEntity>, IEFScopeContextSe
         Func<IQueryable<TEntity>, IQueryable<TEntity>>? include = null,
         CancellationToken cancellationToken = default
     ) => Repo.ListAsync(query, orderBy, include, cancellationToken);
-
-    public void SetScope(EFUnitOfWorkScope scope)
-    {
-        if (_concrete.Value is IEFScopeContextSetter setter)
-        {
-            setter.SetScope(scope);
-            return;
-        }
-        throw new InvalidOperationException(
-            $"Resolved concrete repo '{_concrete.Value.GetType().FullName}' does not implement {nameof(IEFScopeContextSetter)}."
-        );
-    }
 }

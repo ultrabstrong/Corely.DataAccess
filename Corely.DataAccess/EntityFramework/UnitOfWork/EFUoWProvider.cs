@@ -1,56 +1,40 @@
 ﻿using Corely.Common.Models;
-using Corely.DataAccess.Interfaces.Repos;
 using Corely.DataAccess.Interfaces.UnitOfWork;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage;
-using Microsoft.Extensions.DependencyInjection;
 
 namespace Corely.DataAccess.EntityFramework.UnitOfWork;
 
 internal class EFUoWProvider : DisposeBase, IUnitOfWorkProvider
 {
-    private readonly IServiceProvider _serviceProvider;
-    private readonly EFUnitOfWorkScope _scope = new();
+    private readonly HashSet<DbContext> _contexts = [];
     private readonly Dictionary<DbContext, IDbContextTransaction?> _transactions = [];
+    private bool _isActive;
 
-    public EFUoWProvider(IServiceProvider serviceProvider)
-    {
-        _serviceProvider = serviceProvider;
-        _scope.ContextRegistered += OnContextRegistered;
-    }
+    public bool IsActive => _isActive;
 
-    private async void OnContextRegistered(DbContext context)
+    public void Register(DbContext context)
     {
-        if (!_scope.IsActive)
+        if (context == null)
             return;
 
-        // Late enlistment: if active and this context not tracked yet, start a transaction when provider supports it
-        if (!_transactions.ContainsKey(context))
+        if (_contexts.Add(context) && _isActive)
         {
             var supportsTx =
                 context.Database.ProviderName != "Microsoft.EntityFrameworkCore.InMemory";
-            if (supportsTx)
-            {
-                // Fire-and-forget: exceptions here will surface on awaiters of Commit/Rollback; this is acceptable for unit of work boundaries.
-                var tx = await context.Database.BeginTransactionAsync();
-                _transactions[context] = tx;
-            }
-            else
-            {
-                _transactions[context] = null;
-            }
+            _transactions[context] = supportsTx ? context.Database.BeginTransaction() : null;
         }
     }
 
     public async Task BeginAsync(CancellationToken cancellationToken = default)
     {
-        if (_scope.IsActive)
+        if (_isActive)
             throw new InvalidOperationException("Unit of work has already begun.");
 
-        _scope.IsActive = true;
+        _isActive = true;
 
         _transactions.Clear();
-        foreach (var ctx in _scope.Contexts)
+        foreach (var ctx in _contexts)
         {
             var supportsTx = ctx.Database.ProviderName != "Microsoft.EntityFrameworkCore.InMemory";
             _transactions[ctx] = supportsTx
@@ -61,12 +45,25 @@ internal class EFUoWProvider : DisposeBase, IUnitOfWorkProvider
 
     public async Task CommitAsync(CancellationToken cancellationToken = default)
     {
-        if (!_scope.IsActive)
+        if (!_isActive)
             throw new InvalidOperationException("No active unit of work to commit.");
 
         try
         {
-            foreach (var ctx in _scope.Contexts)
+            // Ensure any newly registered contexts have a transaction if supported
+            foreach (var ctx in _contexts)
+            {
+                var supportsTx =
+                    ctx.Database.ProviderName != "Microsoft.EntityFrameworkCore.InMemory";
+                if (supportsTx && !_transactions.ContainsKey(ctx))
+                {
+                    _transactions[ctx] = await ctx.Database.BeginTransactionAsync(
+                        cancellationToken
+                    );
+                }
+            }
+
+            foreach (var ctx in _contexts)
             {
                 if (ctx.ChangeTracker.HasChanges())
                     await ctx.SaveChangesAsync(cancellationToken);
@@ -84,13 +81,14 @@ internal class EFUoWProvider : DisposeBase, IUnitOfWorkProvider
         finally
         {
             _transactions.Clear();
-            _scope.IsActive = false;
+            _isActive = false;
+            _contexts.Clear();
         }
     }
 
     public async Task RollbackAsync(CancellationToken cancellationToken = default)
     {
-        if (!_scope.IsActive)
+        if (!_isActive)
             throw new InvalidOperationException("No active unit of work to roll back.");
 
         try
@@ -104,7 +102,7 @@ internal class EFUoWProvider : DisposeBase, IUnitOfWorkProvider
                 }
             }
 
-            foreach (var ctx in _scope.Contexts)
+            foreach (var ctx in _contexts)
             {
                 ctx.ChangeTracker.Clear();
             }
@@ -112,17 +110,9 @@ internal class EFUoWProvider : DisposeBase, IUnitOfWorkProvider
         finally
         {
             _transactions.Clear();
-            _scope.IsActive = false;
+            _isActive = false;
+            _contexts.Clear();
         }
-    }
-
-    public IRepo<TEntity> GetRepository<TEntity>()
-        where TEntity : class
-    {
-        var repo = _serviceProvider.GetRequiredService<IRepo<TEntity>>();
-        if (repo is IEFScopeContextSetter repoWithScope)
-            repoWithScope.SetScope(_scope);
-        return repo;
     }
 
     protected override void DisposeManagedResources()
@@ -132,7 +122,8 @@ internal class EFUoWProvider : DisposeBase, IUnitOfWorkProvider
             tx?.Dispose();
         }
         _transactions.Clear();
-        _scope.IsActive = false;
+        _contexts.Clear();
+        _isActive = false;
     }
 
     protected override async ValueTask DisposeAsyncCore()
@@ -143,6 +134,7 @@ internal class EFUoWProvider : DisposeBase, IUnitOfWorkProvider
                 await tx.DisposeAsync();
         }
         _transactions.Clear();
-        _scope.IsActive = false;
+        _contexts.Clear();
+        _isActive = false;
     }
 }

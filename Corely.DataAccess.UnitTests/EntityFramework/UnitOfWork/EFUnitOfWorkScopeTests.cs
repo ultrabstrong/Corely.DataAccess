@@ -4,86 +4,59 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Corely.DataAccess.UnitTests.EntityFramework.UnitOfWork;
 
-public class EFUnitOfWorkScopeTests
+public class EFUoWScopeTests
 {
     [Fact]
-    public void Register_AddsContext_AndAppearsInContexts()
+    public void Register_AddsContext_FiresEvent()
     {
-        var scope = new EFUnitOfWorkScope();
+        var scope = new EFUoWScope();
         var options = new DbContextOptionsBuilder<DbContextFixture>()
             .UseInMemoryDatabase(Guid.NewGuid().ToString())
             .Options;
         using var ctx = new DbContextFixture(options);
 
+        var fired = 0;
+        scope.ContextRegistered += _ => fired++;
+
         scope.Register(ctx);
 
-        Assert.Contains(ctx, scope.Contexts);
-        Assert.Single(scope.Contexts);
+        Assert.Equal(1, fired);
     }
 
     [Fact]
-    public void Register_Duplicate_DoesNotAddTwice_AndEventFiresOnce()
+    public void Register_Duplicate_FiresOnce()
     {
-        var scope = new EFUnitOfWorkScope();
+        var scope = new EFUoWScope();
         var options = new DbContextOptionsBuilder<DbContextFixture>()
             .UseInMemoryDatabase(Guid.NewGuid().ToString())
             .Options;
         using var ctx = new DbContextFixture(options);
 
-        var eventCount = 0;
-        scope.ContextRegistered += _ => eventCount++;
+        var fired = 0;
+        scope.ContextRegistered += _ => fired++;
 
         scope.Register(ctx);
-        scope.Register(ctx); // duplicate
+        scope.Register(ctx); // duplicate should still fire twice since scope no longer dedupes
 
-        Assert.Contains(ctx, scope.Contexts);
-        Assert.Single(scope.Contexts);
-        Assert.Equal(1, eventCount);
+        Assert.Equal(2, fired);
     }
 
     [Fact]
     public void Register_Null_DoesNothing()
     {
-        var scope = new EFUnitOfWorkScope();
-        var eventCount = 0;
-        scope.ContextRegistered += _ => eventCount++;
+        var scope = new EFUoWScope();
+        var fired = 0;
+        scope.ContextRegistered += _ => fired++;
 
         scope.Register(null!);
 
-        Assert.Empty(scope.Contexts);
-        Assert.Equal(0, eventCount);
-    }
-
-    [Fact]
-    public void ContextRegistered_Fires_ForEachNewContext()
-    {
-        var scope = new EFUnitOfWorkScope();
-        var db1 = Guid.NewGuid().ToString();
-        var db2 = Guid.NewGuid().ToString();
-
-        using var ctx1 = new DbContextFixture(
-            new DbContextOptionsBuilder<DbContextFixture>().UseInMemoryDatabase(db1).Options
-        );
-        using var ctx2 = new AnotherDbContextFixture(
-            new DbContextOptionsBuilder<AnotherDbContextFixture>().UseInMemoryDatabase(db2).Options
-        );
-
-        var eventCount = 0;
-        scope.ContextRegistered += _ => eventCount++;
-
-        scope.Register(ctx1);
-        scope.Register(ctx2);
-
-        Assert.Equal(2, eventCount);
-        Assert.Equal(2, scope.Contexts.Count);
-        Assert.Contains(ctx1, scope.Contexts);
-        Assert.Contains(ctx2, scope.Contexts);
+        Assert.Equal(0, fired);
     }
 
     [Fact]
     public void IsActive_Property_Roundtrip()
     {
-        var scope = new EFUnitOfWorkScope();
+        var scope = new EFUoWScope();
         Assert.False(scope.IsActive);
         scope.IsActive = true;
         Assert.True(scope.IsActive);

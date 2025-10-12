@@ -1,4 +1,5 @@
 ﻿using System.Linq.Expressions;
+using Corely.Common.Extensions;
 using Corely.DataAccess.Interfaces.Repos;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -13,8 +14,8 @@ internal sealed class EFReadonlyRepoAdapter<TEntity> : IReadonlyRepo<TEntity>
 
     public EFReadonlyRepoAdapter(IServiceProvider serviceProvider, IEFContextResolver entityMapper)
     {
-        _serviceProvider = serviceProvider;
-        _entityMapper = entityMapper;
+        _serviceProvider = serviceProvider.ThrowIfNull(nameof(serviceProvider));
+        _entityMapper = entityMapper.ThrowIfNull(nameof(entityMapper));
         _repo = new Lazy<IReadonlyRepo<TEntity>>(() =>
         {
             var ctxType = _entityMapper.GetContextTypeFor(typeof(TEntity));
