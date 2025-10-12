@@ -97,6 +97,7 @@ internal sealed class AppDbContext : DbContext
 
     protected override void OnModelCreating(ModelBuilder mb)
     {
+        // Explicit configurations may be preferred when assembly has multiple contexts
         var cfgType = typeof(EntityConfigurationBase<>);
         var cfgs = GetType().Assembly.GetTypes()
             .Where(t => t.IsClass && !t.IsAbstract && t.BaseType?.IsGenericType == true && t.BaseType.GetGenericTypeDefinition() == cfgType);
