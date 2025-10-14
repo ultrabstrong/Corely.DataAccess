@@ -145,75 +145,100 @@ public partial class EFUoWProviderTests
     [Fact]
     public async Task CommitAsync_SavesChanges_ForEachRegisteredContext_AndDeactivates()
     {
-        var dbName1 = Guid.NewGuid().ToString();
-        var dbName2 = Guid.NewGuid().ToString();
-        var options1 = new DbContextOptionsBuilder<DbContextFixture>()
-            .UseInMemoryDatabase(dbName1)
-            .Options;
-        var options2 = new DbContextOptionsBuilder<AnotherDbContextFixture>()
-            .UseInMemoryDatabase(dbName2)
-            .Options;
-        var ctx1 = new DbContextFixture(options1);
-        var ctx2 = new AnotherDbContextFixture(options2);
-
-        var logger1 = Moq.Mock.Of<ILogger<EFRepo<DbContextFixture, EntityFixture>>>();
-        var logger2 = Moq.Mock.Of<ILogger<EFRepo<AnotherDbContextFixture, EntityFixture>>>();
-
-        var (sp, uow) = BuildUoW();
-
-        var repo1 = new EFRepo<DbContextFixture, EntityFixture>(logger1, ctx1, uow);
-        var repo2 = new EFRepo<AnotherDbContextFixture, EntityFixture>(logger2, ctx2, uow);
-
-        uow.Register(ctx1);
-        uow.Register(ctx2);
-
-        await uow.BeginAsync();
-
-        await repo1.CreateAsync(new EntityFixture { Id = 10 });
-        await repo2.CreateAsync(new EntityFixture { Id = 20 });
-
-        using (
-            var read1 = new DbContextFixture(
-                new DbContextOptionsBuilder<DbContextFixture>().UseInMemoryDatabase(dbName1).Options
-            )
-        )
+        // Use file-based SQLite to validate pre-commit invisibility across connections
+        var file1 = Path.GetTempFileName();
+        var file2 = Path.GetTempFileName();
+        try
         {
-            Assert.Null(read1.Set<EntityFixture>().Find(10));
-        }
-        using (
-            var read2 = new AnotherDbContextFixture(
-                new DbContextOptionsBuilder<AnotherDbContextFixture>()
-                    .UseInMemoryDatabase(dbName2)
-                    .Options
-            )
-        )
-        {
-            Assert.Null(read2.Set<EntityFixture>().Find(20));
-        }
+            var options1 = new DbContextOptionsBuilder<DbContextFixture>()
+                .UseSqlite($"Data Source={file1}")
+                .Options;
+            var options2 = new DbContextOptionsBuilder<AnotherDbContextFixture>()
+                .UseSqlite($"Data Source={file2}")
+                .Options;
+            var ctx1 = new DbContextFixture(options1);
+            var ctx2 = new AnotherDbContextFixture(options2);
 
-        await uow.CommitAsync();
+            // Create schema
+            ctx1.Database.EnsureCreated();
+            ctx2.Database.EnsureCreated();
 
-        using (
-            var read1 = new DbContextFixture(
-                new DbContextOptionsBuilder<DbContextFixture>().UseInMemoryDatabase(dbName1).Options
-            )
-        )
-        {
-            Assert.NotNull(read1.Set<EntityFixture>().Find(10));
-        }
-        using (
-            var read2 = new AnotherDbContextFixture(
-                new DbContextOptionsBuilder<AnotherDbContextFixture>()
-                    .UseInMemoryDatabase(dbName2)
-                    .Options
-            )
-        )
-        {
-            Assert.NotNull(read2.Set<EntityFixture>().Find(20));
-        }
+            var logger1 = Moq.Mock.Of<ILogger<EFRepo<DbContextFixture, EntityFixture>>>();
+            var logger2 = Moq.Mock.Of<ILogger<EFRepo<AnotherDbContextFixture, EntityFixture>>>();
 
-        Assert.False(uow.IsActive);
-        sp.Dispose();
+            var (sp, uow) = BuildUoW();
+
+            var repo1 = new EFRepo<DbContextFixture, EntityFixture>(logger1, ctx1, uow);
+            var repo2 = new EFRepo<AnotherDbContextFixture, EntityFixture>(logger2, ctx2, uow);
+
+            uow.Register(ctx1);
+            uow.Register(ctx2);
+
+            await uow.BeginAsync();
+
+            await repo1.CreateAsync(new EntityFixture { Id = 10 });
+            await repo2.CreateAsync(new EntityFixture { Id = 20 });
+
+            using (
+                var read1 = new DbContextFixture(
+                    new DbContextOptionsBuilder<DbContextFixture>()
+                        .UseSqlite($"Data Source={file1}")
+                        .Options
+                )
+            )
+            {
+                Assert.Null(read1.Set<EntityFixture>().Find(10));
+            }
+            using (
+                var read2 = new AnotherDbContextFixture(
+                    new DbContextOptionsBuilder<AnotherDbContextFixture>()
+                        .UseSqlite($"Data Source={file2}")
+                        .Options
+                )
+            )
+            {
+                Assert.Null(read2.Set<EntityFixture>().Find(20));
+            }
+
+            await uow.CommitAsync();
+
+            using (
+                var read1 = new DbContextFixture(
+                    new DbContextOptionsBuilder<DbContextFixture>()
+                        .UseSqlite($"Data Source={file1}")
+                        .Options
+                )
+            )
+            {
+                Assert.NotNull(read1.Set<EntityFixture>().Find(10));
+            }
+            using (
+                var read2 = new AnotherDbContextFixture(
+                    new DbContextOptionsBuilder<AnotherDbContextFixture>()
+                        .UseSqlite($"Data Source={file2}")
+                        .Options
+                )
+            )
+            {
+                Assert.NotNull(read2.Set<EntityFixture>().Find(20));
+            }
+
+            Assert.False(uow.IsActive);
+            sp.Dispose();
+        }
+        finally
+        {
+            try
+            {
+                File.Delete(file1);
+            }
+            catch { }
+            try
+            {
+                File.Delete(file2);
+            }
+            catch { }
+        }
     }
 
     [Fact]
@@ -255,79 +280,104 @@ public partial class EFUoWProviderTests
     [Fact]
     public async Task RollbackAsync_ClearsTrackedChanges_ForEachContext_AndDeactivates()
     {
-        var dbName1 = Guid.NewGuid().ToString();
-        var dbName2 = Guid.NewGuid().ToString();
-        var options1 = new DbContextOptionsBuilder<DbContextFixture>()
-            .UseInMemoryDatabase(dbName1)
-            .Options;
-        var options2 = new DbContextOptionsBuilder<AnotherDbContextFixture>()
-            .UseInMemoryDatabase(dbName2)
-            .Options;
-        var ctx1 = new DbContextFixture(options1);
-        var ctx2 = new AnotherDbContextFixture(options2);
-
-        var (_, uow) = BuildUoW();
-
-        var repo1 = new EFRepo<DbContextFixture, EntityFixture>(
-            Moq.Mock.Of<ILogger<EFRepo<DbContextFixture, EntityFixture>>>(),
-            ctx1,
-            uow
-        );
-        var repo2 = new EFRepo<AnotherDbContextFixture, EntityFixture>(
-            Moq.Mock.Of<ILogger<EFRepo<AnotherDbContextFixture, EntityFixture>>>(),
-            ctx2,
-            uow
-        );
-
-        uow.Register(ctx1);
-        uow.Register(ctx2);
-
-        await uow.BeginAsync();
-
-        await repo1.CreateAsync(new EntityFixture { Id = 101 });
-        await repo2.CreateAsync(new EntityFixture { Id = 202 });
-
-        using (
-            var read1 = new DbContextFixture(
-                new DbContextOptionsBuilder<DbContextFixture>().UseInMemoryDatabase(dbName1).Options
-            )
-        )
+        // Use file-based SQLite so that SaveChanges within an active UoW happen inside a transaction
+        var file1 = Path.GetTempFileName();
+        var file2 = Path.GetTempFileName();
+        try
         {
-            Assert.Null(read1.Set<EntityFixture>().Find(101));
-        }
-        using (
-            var read2 = new AnotherDbContextFixture(
-                new DbContextOptionsBuilder<AnotherDbContextFixture>()
-                    .UseInMemoryDatabase(dbName2)
-                    .Options
-            )
-        )
-        {
-            Assert.Null(read2.Set<EntityFixture>().Find(202));
-        }
+            var options1 = new DbContextOptionsBuilder<DbContextFixture>()
+                .UseSqlite($"Data Source={file1}")
+                .Options;
+            var options2 = new DbContextOptionsBuilder<AnotherDbContextFixture>()
+                .UseSqlite($"Data Source={file2}")
+                .Options;
+            var ctx1 = new DbContextFixture(options1);
+            var ctx2 = new AnotherDbContextFixture(options2);
 
-        await uow.RollbackAsync();
+            // Create schema
+            ctx1.Database.EnsureCreated();
+            ctx2.Database.EnsureCreated();
 
-        using (
-            var read1 = new DbContextFixture(
-                new DbContextOptionsBuilder<DbContextFixture>().UseInMemoryDatabase(dbName1).Options
-            )
-        )
-        {
-            Assert.Null(read1.Set<EntityFixture>().Find(101));
-        }
-        using (
-            var read2 = new AnotherDbContextFixture(
-                new DbContextOptionsBuilder<AnotherDbContextFixture>()
-                    .UseInMemoryDatabase(dbName2)
-                    .Options
-            )
-        )
-        {
-            Assert.Null(read2.Set<EntityFixture>().Find(202));
-        }
+            var (_, uow) = BuildUoW();
 
-        Assert.False(uow.IsActive);
+            var repo1 = new EFRepo<DbContextFixture, EntityFixture>(
+                Moq.Mock.Of<ILogger<EFRepo<DbContextFixture, EntityFixture>>>(),
+                ctx1,
+                uow
+            );
+            var repo2 = new EFRepo<AnotherDbContextFixture, EntityFixture>(
+                Moq.Mock.Of<ILogger<EFRepo<AnotherDbContextFixture, EntityFixture>>>(),
+                ctx2,
+                uow
+            );
+
+            uow.Register(ctx1);
+            uow.Register(ctx2);
+
+            await uow.BeginAsync();
+
+            await repo1.CreateAsync(new EntityFixture { Id = 101 });
+            await repo2.CreateAsync(new EntityFixture { Id = 202 });
+
+            using (
+                var read1 = new DbContextFixture(
+                    new DbContextOptionsBuilder<DbContextFixture>()
+                        .UseSqlite($"Data Source={file1}")
+                        .Options
+                )
+            )
+            {
+                Assert.Null(read1.Set<EntityFixture>().Find(101));
+            }
+            using (
+                var read2 = new AnotherDbContextFixture(
+                    new DbContextOptionsBuilder<AnotherDbContextFixture>()
+                        .UseSqlite($"Data Source={file2}")
+                        .Options
+                )
+            )
+            {
+                Assert.Null(read2.Set<EntityFixture>().Find(202));
+            }
+
+            await uow.RollbackAsync();
+
+            using (
+                var read1 = new DbContextFixture(
+                    new DbContextOptionsBuilder<DbContextFixture>()
+                        .UseSqlite($"Data Source={file1}")
+                        .Options
+                )
+            )
+            {
+                Assert.Null(read1.Set<EntityFixture>().Find(101));
+            }
+            using (
+                var read2 = new AnotherDbContextFixture(
+                    new DbContextOptionsBuilder<AnotherDbContextFixture>()
+                        .UseSqlite($"Data Source={file2}")
+                        .Options
+                )
+            )
+            {
+                Assert.Null(read2.Set<EntityFixture>().Find(202));
+            }
+
+            Assert.False(uow.IsActive);
+        }
+        finally
+        {
+            try
+            {
+                File.Delete(file1);
+            }
+            catch { }
+            try
+            {
+                File.Delete(file2);
+            }
+            catch { }
+        }
     }
 
     [Fact]

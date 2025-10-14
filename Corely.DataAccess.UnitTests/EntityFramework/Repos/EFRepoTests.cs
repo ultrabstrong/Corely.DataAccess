@@ -84,48 +84,118 @@ public class EFRepoTests : RepoTestsBase
     [Fact]
     public async Task DeferredPersistence_InsideUnitOfWork_DoesNotSaveUntilCommit()
     {
-        var uow = _sp.GetRequiredService<EFUoWProvider>();
-        var repo = _sp.GetRequiredService<IRepo<EntityFixture>>();
+        // Use file-based SQLite to validate transactional visibility across connections
+        var file = Path.GetTempFileName();
+        try
+        {
+            var services = new ServiceCollection();
+            services.AddLogging();
+            services.AddScoped<EFUoWProvider>();
+            services.AddDbContext<DbContextFixture>(o => o.UseSqlite($"Data Source={file}"));
+            services.RegisterEntityFrameworkReposAndUoW();
+            await using var provider = services.BuildServiceProvider();
 
-        await uow.BeginAsync();
+            // Create schema using a separate, direct context
+            var schemaOpts = new DbContextOptionsBuilder<DbContextFixture>()
+                .UseSqlite($"Data Source={file}")
+                .Options;
+            using (var schemaCtx = new DbContextFixture(schemaOpts))
+            {
+                schemaCtx.Database.EnsureCreated();
+            }
 
-        await repo.CreateAsync(new EntityFixture { Id = 200 });
-        await repo.CreateAsync(new EntityFixture { Id = 201 });
+            using var scope = provider.CreateScope();
+            var sp = scope.ServiceProvider;
 
-        using var readContext = new DbContextFixture(
-            new DbContextOptionsBuilder<DbContextFixture>().UseInMemoryDatabase(_dbName).Options
-        );
-        Assert.Null(readContext.Set<EntityFixture>().Find(200));
-        Assert.Null(readContext.Set<EntityFixture>().Find(201));
+            var uow = sp.GetRequiredService<EFUoWProvider>();
+            var repo = sp.GetRequiredService<IRepo<EntityFixture>>();
 
-        await uow.CommitAsync();
+            await uow.BeginAsync();
 
-        Assert.NotNull(readContext.Set<EntityFixture>().Find(200));
-        Assert.NotNull(readContext.Set<EntityFixture>().Find(201));
+            await repo.CreateAsync(new EntityFixture { Id = 200 });
+            await repo.CreateAsync(new EntityFixture { Id = 201 });
+
+            using var readContext = new DbContextFixture(
+                new DbContextOptionsBuilder<DbContextFixture>()
+                    .UseSqlite($"Data Source={file}")
+                    .Options
+            );
+            Assert.Null(readContext.Set<EntityFixture>().Find(200));
+            Assert.Null(readContext.Set<EntityFixture>().Find(201));
+
+            await uow.CommitAsync();
+
+            Assert.NotNull(readContext.Set<EntityFixture>().Find(200));
+            Assert.NotNull(readContext.Set<EntityFixture>().Find(201));
+        }
+        finally
+        {
+            try
+            {
+                File.Delete(file);
+            }
+            catch { }
+        }
     }
 
     [Fact]
     public async Task Rollback_ClearsPendingChanges_ForDeferredOps()
     {
-        var uow = _sp.GetRequiredService<EFUoWProvider>();
-        var repo = _sp.GetRequiredService<IRepo<EntityFixture>>();
+        // Use file-based SQLite to validate rollback across connections
+        var file = Path.GetTempFileName();
+        try
+        {
+            var services = new ServiceCollection();
+            services.AddLogging();
+            services.AddScoped<EFUoWProvider>();
+            services.AddDbContext<DbContextFixture>(o => o.UseSqlite($"Data Source={file}"));
+            services.RegisterEntityFrameworkReposAndUoW();
+            await using var provider = services.BuildServiceProvider();
 
-        await uow.BeginAsync();
+            // Create schema using a separate, direct context
+            var schemaOpts = new DbContextOptionsBuilder<DbContextFixture>()
+                .UseSqlite($"Data Source={file}")
+                .Options;
+            using (var schemaCtx = new DbContextFixture(schemaOpts))
+            {
+                schemaCtx.Database.EnsureCreated();
+            }
 
-        await repo.CreateAsync(new EntityFixture { Id = 300 });
+            using var scope = provider.CreateScope();
+            var sp = scope.ServiceProvider;
 
-        using var readContext = new DbContextFixture(
-            new DbContextOptionsBuilder<DbContextFixture>().UseInMemoryDatabase(_dbName).Options
-        );
-        Assert.Null(readContext.Set<EntityFixture>().Find(300));
+            var uow = sp.GetRequiredService<EFUoWProvider>();
+            var repo = sp.GetRequiredService<IRepo<EntityFixture>>();
 
-        await uow.RollbackAsync();
+            await uow.BeginAsync();
 
-        Assert.Null(readContext.Set<EntityFixture>().Find(300));
-        Assert.DoesNotContain(
-            _dbContext.ChangeTracker.Entries(),
-            e => e.Entity is EntityFixture ef && ef.Id == 300
-        );
+            await repo.CreateAsync(new EntityFixture { Id = 300 });
+
+            using var readContext = new DbContextFixture(
+                new DbContextOptionsBuilder<DbContextFixture>()
+                    .UseSqlite($"Data Source={file}")
+                    .Options
+            );
+            Assert.Null(readContext.Set<EntityFixture>().Find(300));
+
+            await uow.RollbackAsync();
+
+            Assert.Null(readContext.Set<EntityFixture>().Find(300));
+            // Ensure no lingering tracked entries in a fresh scoped DbContext
+            var verifyCtx = sp.GetRequiredService<DbContextFixture>();
+            Assert.DoesNotContain(
+                verifyCtx.ChangeTracker.Entries(),
+                e => e.Entity is EntityFixture ef && ef.Id == 300
+            );
+        }
+        finally
+        {
+            try
+            {
+                File.Delete(file);
+            }
+            catch { }
+        }
     }
 
     protected override int FillRepoAndReturnId()
