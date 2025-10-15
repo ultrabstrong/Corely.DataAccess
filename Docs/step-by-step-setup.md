@@ -96,6 +96,7 @@ using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
 internal sealed class TodoItemConfiguration(IEFDbTypes db) : EntityConfigurationBase<TodoItem, int>(db)
 {
+    // optional override to customize configuration
     protected override void ConfigureInternal(EntityTypeBuilder<TodoItem> b)
         => b.Property(e => e.Title).IsRequired().HasMaxLength(200);
 }
