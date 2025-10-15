@@ -3,7 +3,7 @@
 High-level abstractions over EF Core that keep the domain/persistence boundary clean while staying practical.
 
 What you get:
-- Decoupled persistence layer: domain works against small repo + UoW interfaces; EF Core is the default implementation but not required. You can plug in other providers (e.g., Dapper) by implementing the same interfaces.
+- Decoupled persistence layer: domain works against small repo + UoW interfaces; EF Core is the default implementation but not required. You can plug in other LINQ-capable providers (e.g., NHibernate, LINQ to DB) by implementing the same interfaces.
 - Provider-agnostic EF configuration abstraction (IEFConfiguration + base classes)
 - Entity configuration helpers (EntityConfigurationBase + column helpers)
 - Generic repositories (readonly + CRUD) with adapters that auto-map to your DbContexts
@@ -28,7 +28,7 @@ services.RegisterEntityFrameworkReposAndUoW();
 
 // Alternatively, mocks can be registered via services.RegisterMockReposAndUoW() for fast tests.
 ```
-Note: To use a non‑EF provider (e.g., Dapper), implement IReadonlyRepo<T>, IRepo<T>, and IUnitOfWorkProvider yourself and register those services in DI instead of the EF adapters/UoW.
+Note: To use a non‑EF provider (e.g., NHibernate or LINQ to DB), implement IReadonlyRepo<T>, IRepo<T>, and IUnitOfWorkProvider yourself and register those services in DI instead of the EF adapters/UoW.
 
 ## Usage
 ```csharp
