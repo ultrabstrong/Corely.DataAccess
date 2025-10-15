@@ -50,6 +50,7 @@ await uow.CommitAsync();
 ## Documentation
 - [Step-by-Step Setup](step-by-step-setup.md)
 - [Configurations](configurations.md)
+- [DbContextBase](dbcontext-base.md)
 - [Entity Configuration & Property Helpers](entity-configuration.md)
 - [Repositories](repositories.md)
 - [Unit of Work](unit-of-work.md)

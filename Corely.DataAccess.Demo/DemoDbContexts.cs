@@ -1,4 +1,5 @@
-﻿using Corely.DataAccess.EntityFramework.Configurations;
+﻿using Corely.DataAccess.EntityFramework;
+using Corely.DataAccess.EntityFramework.Configurations;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -12,66 +13,48 @@ public class ContextConfigurationKeys
     public const string CONTEXT_2_CONFIG = nameof(CONTEXT_2_CONFIG);
 }
 
-internal class DemoDbContext : DbContext
+internal class DemoDbContext : DbContextBase
 {
-    private readonly IEFConfiguration _efConfiguration;
-
     public DemoDbContext(
         [FromKeyedServices(ContextConfigurationKeys.CONTEXT_1_CONFIG)]
             IEFConfiguration efConfiguration
     )
-        : base() => _efConfiguration = efConfiguration;
+        : base(efConfiguration) { }
 
     public DemoDbContext(
-        DbContextOptions<DemoDbContext> options,
+        DbContextOptions<DbContextBase> options,
         [FromKeyedServices(ContextConfigurationKeys.CONTEXT_1_CONFIG)]
             IEFConfiguration efConfiguration
     )
-        : base(options) => _efConfiguration = efConfiguration;
+        : base(options, efConfiguration) { }
 
     public DbSet<DemoEntity> DemoEntities => Set<DemoEntity>();
 
-    protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
-    {
-        base.OnConfiguring(optionsBuilder);
-        _efConfiguration.Configure(optionsBuilder);
-    }
-
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
-        modelBuilder.ApplyConfiguration(new DemoEntityConfiguration(_efConfiguration.GetDbTypes()));
+        modelBuilder.ApplyConfiguration(new DemoEntityConfiguration(efConfiguration.GetDbTypes()));
     }
 }
 
-internal class DemoDbContext2 : DbContext
+internal class DemoDbContext2 : DbContextBase
 {
-    private readonly IEFConfiguration _efConfiguration;
-
     public DemoDbContext2(
         [FromKeyedServices(ContextConfigurationKeys.CONTEXT_2_CONFIG)]
             IEFConfiguration efConfiguration
     )
-        : base() => _efConfiguration = efConfiguration;
+        : base(efConfiguration) { }
 
     public DemoDbContext2(
-        DbContextOptions<DemoDbContext2> options,
+        DbContextOptions<DbContextBase> options,
         [FromKeyedServices(ContextConfigurationKeys.CONTEXT_2_CONFIG)]
             IEFConfiguration efConfiguration
     )
-        : base(options) => _efConfiguration = efConfiguration;
+        : base(options, efConfiguration) { }
 
     public DbSet<DemoEntity2> DemoEntities2 => Set<DemoEntity2>();
 
-    protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
-    {
-        base.OnConfiguring(optionsBuilder);
-        _efConfiguration.Configure(optionsBuilder);
-    }
-
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
-        modelBuilder.ApplyConfiguration(
-            new DemoEntity2Configuration(_efConfiguration.GetDbTypes())
-        );
+        modelBuilder.ApplyConfiguration(new DemoEntity2Configuration(efConfiguration.GetDbTypes()));
     }
 }

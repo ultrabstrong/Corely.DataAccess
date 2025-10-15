@@ -7,6 +7,11 @@ Core library (always):
 ```bash
 dotnet add package Corely.DataAccess
 ```
+Logger (needed for service registration)
+```bash
+# Simplest logger to start with is Microsoft console logger
+dotnet add package Microsoft.Extensions.Logging.Console
+```
 EF Core provider packages (choose what you need):
 ```bash
 # SQLite (demo-friendly)
@@ -33,16 +38,34 @@ SQLite example:
 ```csharp
 using Corely.DataAccess.EntityFramework.Configurations;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Data.Sqlite;
 
-public sealed class SqliteAppConfiguration(string connectionString) : EFSqliteConfigurationBase(connectionString)
+internal sealed class SqliteAppConfiguration : EFSqliteConfigurationBase
 {
+    private readonly SqliteConnection? _sqliteConnection;
+
+    public SqliteAppConfiguration(string connectionString) : base(connectionString)
+    {
+        // need to keep the connection open for in-memory dbs
+        if (connectionString.Contains(":memory:", StringComparison.OrdinalIgnoreCase))
+        {
+            _sqliteConnection = new SqliteConnection(connectionString);
+            _sqliteConnection.Open();
+        }
+
+    }
     public override void Configure(DbContextOptionsBuilder b)
-        => b.UseSqlite(connectionString);
+    {
+        if (_sqliteConnection == null)
+            b.UseSqlite(connectionString);
+        else
+            b.UseSqlite(_sqliteConnection);
+    }
 }
 ```
 In-memory example:
 ```csharp
-public sealed class InMemoryAppConfiguration(string dbName) : EFInMemoryConfigurationBase
+internal sealed class InMemoryAppConfiguration(string dbName) : EFInMemoryConfigurationBase
 {
     public override void Configure(DbContextOptionsBuilder b)
         => b.UseInMemoryDatabase(dbName);
@@ -65,7 +88,7 @@ internal class TodoItem : IHasIdPk<int>, IHasCreatedUtc, IHasModifiedUtc
 ```
 Learn more in the [Entity Configuration](entity-configuration.md) docs.
 
-## 4) (Optional) Entity Configuration
+## 4) Entity Configuration
 To enable audit helpers and conventions, derive from `EntityConfigurationBase<>`:
 ```csharp
 using Corely.DataAccess.EntityFramework;
@@ -79,8 +102,43 @@ internal sealed class TodoItemConfiguration(IEFDbTypes db) : EntityConfiguration
 ```
 
 ## 5) Create Your DbContext
-Provider-agnostic: depends on `IEFConfiguration` and discovers configurations.
+Two options:
 
+A) Simplest (DbContextBase)
+```csharp
+using Corely.DataAccess.EntityFramework;
+using Corely.DataAccess.EntityFramework.Configurations;
+using Microsoft.EntityFrameworkCore;
+
+internal sealed class AppDbContext : DbContextBase
+{
+    public AppDbContext(IEFConfiguration efConfiguration) : base(efConfiguration) { }
+    public AppDbContext(DbContextOptions<AppDbContext> opts, IEFConfiguration efConfiguration)
+        : base(efConfiguration) { }
+
+    public DbSet<TodoItem> TodoItems => Set<TodoItem>();
+
+    // Apply entity configurations
+    protected override void OnModelCreating(ModelBuilder modelBuilder)
+    {
+        var configTypes = new[] { typeof(EntityConfigurationBase<>), typeof(EntityConfigurationBase<,>) };
+        foreach (var configType in configTypes)
+        {
+            var configs = GetType().Assembly.GetTypes()
+                .Where(t => t.IsClass && !t.IsAbstract && t.BaseType?.IsGenericType == true
+                    && t.BaseType.GetGenericTypeDefinition() == configType);
+            foreach (var t in configs)
+            {
+                var cfg = Activator.CreateInstance(t, efConfiguration.GetDbTypes());
+                modelBuilder.ApplyConfiguration((dynamic)cfg!);
+            }
+        }
+    }
+}
+```
+See [DbContextBase](dbcontext-base.md) for details.
+
+B) Provider-agnostic with explicit OnModelCreating
 ```csharp
 internal sealed class AppDbContext : DbContext
 {
@@ -105,11 +163,11 @@ internal sealed class AppDbContext : DbContext
         var configTypes = new Type[] { typeof(EntityConfigurationBase<>), typeof(EntityConfigurationBase<,>) };
         foreach (var configType in configTypes)
         {
-            var configs = GetType().Assembly.GetTypes()
-            .Where(t => t.IsClass
-                && !t.IsAbstract
-                && t.BaseType?.IsGenericType == true
-                && t.BaseType.GetGenericTypeDefinition() == configType);
+            var configs = GetType()
+                .Assembly.GetTypes()
+                .Where(t => t is { IsClass: true, IsAbstract: false, BaseType.IsGenericType: true }
+                    && t.BaseType.GetGenericTypeDefinition() == configType
+                );
 
             foreach (var t in configs)
             {
@@ -125,12 +183,22 @@ internal sealed class AppDbContext : DbContext
 Use the helper to wire repositories. Also register a provider configuration and your DbContext(s).
 ```csharp
 var services = new ServiceCollection();
+services.AddLogging(b => b.AddConsole()); // Can replace with your preferred logger
 services.AddSingleton<IEFConfiguration>(new SqliteAppConfiguration("Data Source=:memory:"));
 services.AddDbContext<AppDbContext>(); // internal types are fine within your project
 
 // Repos + UoW (standard path)
 services.RegisterEntityFrameworkReposAndUoW();
 ```
+
+Note (tests/demos only): Ensure the schema exists for your DbContext before running queries. For ephemeral providers (InMemory, SQLite in-memory) or simple demos, you can call EnsureCreated to create tables:
+```csharp
+using var provider = services.BuildServiceProvider();
+using var scope = provider.CreateScope();
+var ctx = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+ctx.Database.EnsureCreated();
+```
+Avoid EnsureCreated in production. Prefer migrations (dotnet ef database update) or your organization’s deployment process to create/update schemas.
 
 For provider‑free unit tests, you can instead do:
 ```csharp

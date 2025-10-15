@@ -26,7 +26,7 @@ public abstract class EntityConfigurationBase<TEntity, TKey> : IEntityTypeConfig
         ConfigureInternal(builder);
     }
 
-    protected abstract void ConfigureInternal(EntityTypeBuilder<TEntity> builder);
+    protected virtual void ConfigureInternal(EntityTypeBuilder<TEntity> builder) { }
 }
 
 public abstract class EntityConfigurationBase<TEntity> : IEntityTypeConfiguration<TEntity>
@@ -49,5 +49,5 @@ public abstract class EntityConfigurationBase<TEntity> : IEntityTypeConfiguratio
         ConfigureInternal(builder);
     }
 
-    protected abstract void ConfigureInternal(EntityTypeBuilder<TEntity> builder);
+    protected virtual void ConfigureInternal(EntityTypeBuilder<TEntity> builder) { }
 }

@@ -4,19 +4,26 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Corely.DataAccess.Demo.Configurations;
 
-public class SqliteDemoConfiguration : EFSqliteConfigurationBase
+internal sealed class SqliteDemoConfiguration : EFSqliteConfigurationBase
 {
-    private readonly SqliteConnection _connection;
+    private readonly SqliteConnection? _sqliteConnection;
 
-    public SqliteDemoConfiguration(string connectionString)
+    public SqliteDemoConfiguration(string connectionString = "Data Source=:memory:;Cache=Shared")
         : base(connectionString)
     {
-        _connection = new SqliteConnection(connectionString);
-        _connection.Open();
+        // need to keep the connection open for in-memory dbs
+        if (connectionString.Contains(":memory:", StringComparison.OrdinalIgnoreCase))
+        {
+            _sqliteConnection = new SqliteConnection(connectionString);
+            _sqliteConnection.Open();
+        }
     }
 
-    public override void Configure(DbContextOptionsBuilder optionsBuilder)
+    public override void Configure(DbContextOptionsBuilder b)
     {
-        optionsBuilder.UseSqlite(_connection);
+        if (_sqliteConnection == null)
+            b.UseSqlite(connectionString);
+        else
+            b.UseSqlite(_sqliteConnection);
     }
 }
