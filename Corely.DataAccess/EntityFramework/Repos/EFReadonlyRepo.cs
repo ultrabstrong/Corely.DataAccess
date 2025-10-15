@@ -72,4 +72,25 @@ internal class EFReadonlyRepo<TContext, TEntity> : IReadonlyRepo<TEntity>
             queryable = queryable.Where(query);
         return queryable.ToListAsync(cancellationToken);
     }
+
+    public Task<TResult> EvaluateAsync<TResult>(
+        Func<IQueryable<TEntity>, CancellationToken, Task<TResult>> run,
+        CancellationToken cancellationToken = default
+    )
+    {
+        ArgumentNullException.ThrowIfNull(run);
+        var queryable = DbSet.AsQueryable();
+        return run(queryable, cancellationToken);
+    }
+
+    public Task<List<TResult>> QueryAsync<TResult>(
+        Func<IQueryable<TEntity>, IQueryable<TResult>> build,
+        CancellationToken cancellationToken = default
+    )
+    {
+        ArgumentNullException.ThrowIfNull(build);
+        var queryable = DbSet.AsQueryable();
+        var shaped = build(queryable);
+        return shaped.ToListAsync(cancellationToken);
+    }
 }

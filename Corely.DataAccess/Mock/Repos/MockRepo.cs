@@ -196,4 +196,25 @@ public class MockRepo<TEntity> : IRepo<TEntity>
         Entities.Remove(entity); // reference fallback
         return Task.CompletedTask;
     }
+
+    public virtual Task<TResult> EvaluateAsync<TResult>(
+        Func<IQueryable<TEntity>, CancellationToken, Task<TResult>> run,
+        CancellationToken cancellationToken = default
+    )
+    {
+        ArgumentNullException.ThrowIfNull(run);
+        var queryable = Entities.AsQueryable();
+        return run(queryable, cancellationToken);
+    }
+
+    public virtual Task<List<TResult>> QueryAsync<TResult>(
+        Func<IQueryable<TEntity>, IQueryable<TResult>> build,
+        CancellationToken cancellationToken = default
+    )
+    {
+        ArgumentNullException.ThrowIfNull(build);
+        var queryable = Entities.AsQueryable();
+        var shaped = build(queryable);
+        return Task.FromResult(shaped.ToList());
+    }
 }

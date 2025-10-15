@@ -51,4 +51,32 @@ public class EFReadonlyRepoTests : ReadonlyRepoTestsBase
     {
         Assert.IsAssignableFrom<IReadonlyRepo<EntityFixture>>(_efReadonlyRepo);
     }
+
+    [Fact]
+    public async Task EvaluateAsync_Allows_Aggregates()
+    {
+        // Arrange
+        var expected = await _dbContext.Set<EntityFixture>().SumAsync(e => e.Id);
+
+        // Act
+        var sum = await _efReadonlyRepo.EvaluateAsync((q, ct) => q.SumAsync(e => e.Id, ct));
+
+        // Assert
+        Assert.Equal(expected, sum);
+    }
+
+    [Fact]
+    public async Task QueryAsync_Allows_Projections()
+    {
+        // Act
+        var ids = await _efReadonlyRepo.QueryAsync(q => q.OrderBy(e => e.Id).Select(e => e.Id));
+
+        // Assert
+        var expected = await _dbContext
+            .Set<EntityFixture>()
+            .OrderBy(e => e.Id)
+            .Select(e => e.Id)
+            .ToListAsync();
+        Assert.Equal(expected, ids);
+    }
 }

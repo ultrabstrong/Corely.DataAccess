@@ -10,6 +10,13 @@ public interface IReadonlyRepo<TEntity>
     Task<bool> AnyAsync(Expression<Func<TEntity,bool>> query);
     Task<int> CountAsync(Expression<Func<TEntity,bool>>? query = null);
     Task<List<TEntity>> ListAsync(Expression<Func<TEntity,bool>>? query = null, ...);
+
+    // Advanced queries
+    // EvaluateAsync: run arbitrary aggregate/single-result operations server-side
+    Task<TResult> EvaluateAsync<TResult>(Func<IQueryable<TEntity>, CancellationToken, Task<TResult>> run, CancellationToken ct = default);
+
+    // QueryAsync: shape to DTOs/projections and materialize as list
+    Task<List<TResult>> QueryAsync<TResult>(Func<IQueryable<TEntity>, IQueryable<TResult>> build, CancellationToken ct = default);
 }
 
 public interface IRepo<TEntity> : IReadonlyRepo<TEntity>
@@ -52,6 +59,38 @@ var recent = await repo.ListAsync(
     orderBy: q => q.OrderByDescending(x => x.CreatedUtc),
     include: q => q.Include(x => x.Children));
 ```
+
+## Advanced Queries
+Use the generic methods to avoid growing the interface with method-per-aggregate overloads:
+
+- Aggregates and single result:
+```csharp
+var total = await repo.EvaluateAsync((q, ct) => q.SumAsync(e => e.Amount, ct));
+var anyHigh = await repo.EvaluateAsync((q, ct) => q.AnyAsync(e => e.Amount > 100, ct));
+var maxId = await repo.EvaluateAsync((q, ct) => q.MaxAsync(e => e.Id, ct));
+```
+
+- Projections:
+```csharp
+var items = await repo.QueryAsync(q =>
+    q.Where(e => e.IsActive)
+     .OrderBy(e => e.Id)
+     .Select(e => new ItemDto { Id = e.Id, Name = e.Name }));
+```
+
+- Paging (Skip/Take):
+```csharp
+// Deterministic paging requires ordering
+var pageIndex = 1; // zero-based
+var pageSize = 10;
+var page = await repo.QueryAsync(q =>
+    q.OrderBy(e => e.Id)
+     .Skip(pageIndex * pageSize)
+     .Take(pageSize)
+     .Select(e => new ItemDto { Id = e.Id, Name = e.Name }));
+```
+
+These run server-side when using EF-backed repos; mocks execute over in-memory collections.
 
 ## Create/Update/Delete Semantics
 - CreateAsync: single or batch; inside an active UoW, changes are deferred until CommitAsync (unless using in-Memory db).

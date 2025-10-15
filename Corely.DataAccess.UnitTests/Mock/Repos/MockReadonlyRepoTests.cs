@@ -27,4 +27,30 @@ public class MockReadonlyRepoTests : ReadonlyRepoTestsBase
 
         return entityList[2].Id;
     }
+
+    [Fact]
+    public async Task EvaluateAsync_Allows_Aggregates()
+    {
+        // Arrange
+        var expected = _mockRepo.Entities.Sum(e => e.Id);
+
+        // Act
+        var sum = await _mockReadonlyRepo.EvaluateAsync(
+            (q, ct) => Task.FromResult(q.Sum(e => e.Id))
+        );
+
+        // Assert
+        Assert.Equal(expected, sum);
+    }
+
+    [Fact]
+    public async Task QueryAsync_Allows_Projections()
+    {
+        // Act
+        var ids = await _mockReadonlyRepo.QueryAsync(q => q.OrderBy(e => e.Id).Select(e => e.Id));
+
+        // Assert
+        var expected = _mockRepo.Entities.OrderBy(e => e.Id).Select(e => e.Id).ToList();
+        Assert.Equal(expected, ids);
+    }
 }

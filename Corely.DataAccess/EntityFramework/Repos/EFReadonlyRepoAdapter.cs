@@ -49,4 +49,14 @@ internal sealed class EFReadonlyRepoAdapter<TEntity> : IReadonlyRepo<TEntity>
         Func<IQueryable<TEntity>, IQueryable<TEntity>>? include = null,
         CancellationToken cancellationToken = default
     ) => Repo.ListAsync(query, orderBy, include, cancellationToken);
+
+    public Task<TResult> EvaluateAsync<TResult>(
+        Func<IQueryable<TEntity>, CancellationToken, Task<TResult>> run,
+        CancellationToken cancellationToken = default
+    ) => Repo.EvaluateAsync(run, cancellationToken);
+
+    public Task<List<TResult>> QueryAsync<TResult>(
+        Func<IQueryable<TEntity>, IQueryable<TResult>> build,
+        CancellationToken cancellationToken = default
+    ) => Repo.QueryAsync(build, cancellationToken);
 }

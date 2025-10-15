@@ -1,6 +1,7 @@
 ﻿using Corely.DataAccess.Demo;
 using Corely.DataAccess.Interfaces.Repos;
 using Corely.DataAccess.Interfaces.UnitOfWork;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace Corely.DataAccess.DemoApp;
@@ -12,6 +13,7 @@ internal class Program
         var provider = ServiceRegistration.GetServiceProvider();
         await RepoExample(provider);
         await ReadonlyRepoExample(provider);
+        await ReadonlyRepoAdvancedQueriesExample(provider);
         await MultipleServiceExample(provider);
         await UnitOfWorkExample(provider);
     }
@@ -78,6 +80,28 @@ internal class Program
 
         var entity = await readonlyRepo.GetAsync(e => e.Name.Contains("Dog"));
         Console.WriteLine($"Retrieved entity: {entity?.Name}");
+    }
+
+    static async Task ReadonlyRepoAdvancedQueriesExample(IServiceProvider provider)
+    {
+        Console.WriteLine();
+        Console.WriteLine("Readonly Repo Advanced Queries Example:");
+
+        var readonlyRepo = provider.GetRequiredService<IReadonlyRepo<DemoEntity>>();
+
+        // Aggregate: Sum of Ids (server-side when using EF providers)
+        var sumIds = await readonlyRepo.EvaluateAsync((q, ct) => q.SumAsync(e => e.Id, ct));
+        Console.WriteLine($"Sum of Ids: {sumIds}");
+
+        // Projection: Names ordered by Id
+        var names = await readonlyRepo.QueryAsync(q => q.OrderBy(e => e.Id).Select(e => e.Name));
+        Console.WriteLine($"Names ordered: {string.Join(", ", names)}");
+
+        // Paging: Skip/Take over an ordered query
+        var pagedNames = await readonlyRepo.QueryAsync(q =>
+            q.OrderBy(e => e.Id).Skip(1).Take(2).Select(e => e.Name)
+        );
+        Console.WriteLine($"Paged (skip 1, take 2): {string.Join(", ", pagedNames)}");
     }
 
     static async Task MultipleServiceExample(IServiceProvider provider)

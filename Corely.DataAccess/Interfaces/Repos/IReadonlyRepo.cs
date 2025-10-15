@@ -28,4 +28,15 @@ public interface IReadonlyRepo<TEntity>
         Func<IQueryable<TEntity>, IQueryable<TEntity>>? include = null,
         CancellationToken cancellationToken = default
     );
+
+    // Generic projection + aggregate helpers for maximum flexibility
+    Task<TResult> EvaluateAsync<TResult>(
+        Func<IQueryable<TEntity>, CancellationToken, Task<TResult>> run,
+        CancellationToken cancellationToken = default
+    );
+
+    Task<List<TResult>> QueryAsync<TResult>(
+        Func<IQueryable<TEntity>, IQueryable<TResult>> build,
+        CancellationToken cancellationToken = default
+    );
 }
