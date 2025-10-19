@@ -1,8 +1,8 @@
-﻿using System.Reflection;
-using AutoFixture;
+﻿using AutoFixture;
 using Corely.DataAccess.Interfaces.Repos;
 using Corely.DataAccess.UnitTests.Fixtures;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Query;
 using Moq;
 
 namespace Corely.DataAccess.UnitTests;
@@ -12,6 +12,8 @@ public abstract class ReadonlyRepoTestsBase
     protected readonly Fixture Fixture = new();
 
     protected abstract IReadonlyRepo<EntityFixture> ReadonlyRepo { get; }
+
+    protected abstract IEnumerable<EntityFixture> Entities { get; }
 
     protected abstract int FillRepoAndReturnId();
 
@@ -144,5 +146,59 @@ public abstract class ReadonlyRepoTestsBase
         await ReadonlyRepo.ListAsync(include: includeMock.Object);
 
         includeMock.Verify(m => m(It.IsAny<IQueryable<EntityFixture>>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task EvaluateAsync_Allows_Aggregates()
+    {
+        // Arrange
+        var expected = Entities.Sum(e => e.Id);
+
+        // Act
+        var sum = await ReadonlyRepo.EvaluateAsync((q, ct) => Task.FromResult(q.Sum(e => e.Id)));
+
+        // Assert
+        Assert.Equal(expected, sum);
+    }
+
+    [Fact]
+    public async Task EvaluateAsync_Allows_AsyncAggregates()
+    {
+        // Arrange
+        var expected = Entities.Sum(e => e.Id);
+
+        // Act
+        var sum = await ReadonlyRepo.EvaluateAsync(
+            (q, ct) => q.SumAsync(e => e.Id, cancellationToken: ct)
+        );
+
+        // Assert
+        Assert.Equal(expected, sum);
+    }
+
+    [Fact]
+    public async Task QueryAsync_Allows_Projections()
+    {
+        // Act
+        var ids = await ReadonlyRepo.QueryAsync(q => q.OrderBy(e => e.Id).Select(e => e.Id));
+
+        // Assert
+        var expected = Entities.OrderBy(e => e.Id).Select(e => e.Id).ToList();
+        Assert.Equal(expected, ids);
+    }
+
+    [Fact]
+    public async Task QueryAsync_Allows_AsyncProjections()
+    {
+        // Act: verify the queryable supports async provider inside the projection builder
+        var ids = await ReadonlyRepo.QueryAsync(q =>
+        {
+            Assert.IsType<IAsyncQueryProvider>(q.Provider, exactMatch: false);
+            return q.OrderBy(e => e.Id).Select(e => e.Id);
+        });
+
+        // Assert
+        var expected = Entities.OrderBy(e => e.Id).Select(e => e.Id).ToList();
+        Assert.Equal(expected, ids);
     }
 }

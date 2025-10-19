@@ -19,7 +19,21 @@ internal static class ServiceRegistration
         // ================= 1. REGISTER LOGGING =================
         services.AddLogging(b => b.AddConsole().SetMinimumLevel(LogLevel.Debug));
 
-        // ================= 2. REGISTER EF CONFIGURATION (CONNECTION) =================
+        // ================= 2. REGISTER DEMO SERVICES =================
+        services.AddScoped<DemoService>();
+        services.AddScoped<DemoService2>();
+
+        // ================= 3. REGISTER REPO AND UOW SERVICES =================
+        services.RegisterEFServices();
+        // Comment the line above and uncomment the line below to use mock repos and UoW instead of EF
+        // services.RegisterMockReposAndUoW();
+
+        return services.BuildServiceProvider();
+    }
+
+    private static void RegisterEFServices(this IServiceCollection services)
+    {
+        // ================= REGISTER EF CONFIGURATION (CONNECTION) =================
 
         // Uncomment to use In-Memory database
         var context1Config = new InMemoryDemoConfiguration("DemoDbContext1");
@@ -44,22 +58,14 @@ internal static class ServiceRegistration
             context2Config
         );
 
-        // ================= 3. REGISTER REPOSITORIES, UNIT OF WORK, AND CONTEXTS =================
+        // ================= REGISTER REPOSITORIES, UNIT OF WORK, AND CONTEXTS =================
         services.RegisterEntityFrameworkReposAndUoW();
         services.AddScoped<DemoDbContext>();
         services.AddScoped<DemoDbContext2>();
 
-        // ================= 4. REGISTER DEMO SERVICES =================
-        services.AddScoped<DemoService>();
-        services.AddScoped<DemoService2>();
-
-        var provider = services.BuildServiceProvider();
-
         // Ensure schema exists for the specified DbContexts (order matters for shared in-memory relational providers)
         // NOTE this is for demo purposes; in a real app, use migrations and proper deployment practices
-        EnsureSchemas(provider, typeof(DemoDbContext), typeof(DemoDbContext2));
-
-        return provider;
+        services.EnsureSchemas(typeof(DemoDbContext), typeof(DemoDbContext2));
     }
 
     /*
@@ -67,8 +73,12 @@ internal static class ServiceRegistration
      * Works whether contexts share the same database/connection or use different ones.
      * In a real application, use migrations and proper deployment practices.
      */
-    private static void EnsureSchemas(IServiceProvider provider, params Type[] dbContextTypes)
+    private static void EnsureSchemas(
+        this IServiceCollection services,
+        params Type[] dbContextTypes
+    )
     {
+        var provider = services.BuildServiceProvider();
         using var scope = provider.CreateScope();
         foreach (var ctxType in dbContextTypes)
         {

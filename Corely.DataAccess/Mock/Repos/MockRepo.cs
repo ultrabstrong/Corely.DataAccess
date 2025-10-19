@@ -1,6 +1,7 @@
 ﻿using System.Linq.Expressions;
 using Corely.DataAccess.Interfaces.Entities;
 using Corely.DataAccess.Interfaces.Repos;
+using Corely.DataAccess.Mock.Linq;
 
 namespace Corely.DataAccess.Mock.Repos;
 
@@ -203,7 +204,8 @@ public class MockRepo<TEntity> : IRepo<TEntity>
     )
     {
         ArgumentNullException.ThrowIfNull(run);
-        var queryable = Entities.AsQueryable();
+        // Provide an async-capable IQueryable so EF-style async operators like SumAsync work
+        var queryable = Entities.AsAsyncQueryable();
         return run(queryable, cancellationToken);
     }
 
@@ -213,7 +215,8 @@ public class MockRepo<TEntity> : IRepo<TEntity>
     )
     {
         ArgumentNullException.ThrowIfNull(build);
-        var queryable = Entities.AsQueryable();
+        // Provide an async-capable IQueryable so EF-style async operators work
+        var queryable = Entities.AsAsyncQueryable();
         var shaped = build(queryable);
         return Task.FromResult(shaped.ToList());
     }

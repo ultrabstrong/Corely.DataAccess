@@ -10,12 +10,21 @@ internal class Program
 {
     static async Task Main()
     {
-        var provider = ServiceRegistration.GetServiceProvider();
-        await RepoExample(provider);
-        await ReadonlyRepoExample(provider);
-        await ReadonlyRepoAdvancedQueriesExample(provider);
-        await MultipleServiceExample(provider);
-        await UnitOfWorkExample(provider);
+        try
+        {
+            var provider = ServiceRegistration.GetServiceProvider();
+            await RepoExample(provider);
+            await ReadonlyRepoExample(provider);
+            await ReadonlyRepoAdvancedQueriesExample(provider);
+            await MultipleServiceExample(provider);
+            await UnitOfWorkExample(provider);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Exception: {ex}");
+        }
+        Console.WriteLine("Program finished. Press any key to exit");
+        Console.ReadKey();
     }
 
     static async Task RepoExample(IServiceProvider provider)

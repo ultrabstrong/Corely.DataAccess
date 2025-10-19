@@ -10,6 +10,7 @@ public class MockRepoTests : RepoTestsBase
 {
     private readonly MockRepo<EntityFixture> _mockRepo = new();
     protected override IRepo<EntityFixture> Repo => _mockRepo;
+    protected override IEnumerable<EntityFixture> Entities => _mockRepo.Entities;
 
     protected override int FillRepoAndReturnId()
     {
@@ -18,7 +19,7 @@ public class MockRepoTests : RepoTestsBase
         return entityList[2].Id;
     }
 
-    private EntityFixture NewEntity(
+    private static EntityFixture NewEntity(
         int id,
         DateTime? createdUtc = null,
         DateTime? modifiedUtc = null
@@ -120,7 +121,7 @@ public class MockRepoTests : RepoTestsBase
     public async Task Delete_FallbacksToReference_WhenNoKeyInterface()
     {
         var repo = new MockRepo<NoKeyEntity>();
-        await repo.CreateAsync(new[] { new NoKeyEntity(), new NoKeyEntity() });
+        await repo.CreateAsync([new NoKeyEntity(), new NoKeyEntity()]);
 
         var first = repo.Entities.First();
         var second = repo.Entities.Skip(1).First();

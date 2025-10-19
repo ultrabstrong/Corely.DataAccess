@@ -6,13 +6,12 @@ using Corely.DataAccess.Interfaces.UnitOfWork;
 using Corely.DataAccess.UnitTests.Fixtures;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Logging;
 
 namespace Corely.DataAccess.UnitTests.DI;
 
 public class ServiceRegistrationTests
 {
-    private ServiceProvider BuildProvider(string dbName)
+    private static ServiceProvider BuildProvider(string dbName)
     {
         var services = new ServiceCollection();
         services.AddLogging();
@@ -72,7 +71,7 @@ public class ServiceRegistrationTests
     }
 
     [Fact]
-    public void Adapter_ResolvesConcreteRepo_WithSameUoWInstance()
+    public async Task Adapter_ResolvesConcreteRepo_WithSameUoWInstance()
     {
         using var sp = BuildProvider(Guid.NewGuid().ToString());
         using var scope = sp.CreateScope();
@@ -82,7 +81,7 @@ public class ServiceRegistrationTests
         // Resolve adapter and force it to create the concrete repo inside the same scope
         var adapter = scope.ServiceProvider.GetRequiredService<IRepo<EntityFixture>>();
         // Perform an innocuous call to ensure the inner EFRepo is constructed
-        var _ = adapter.AnyAsync(e => e.Id == -1).GetAwaiter().GetResult();
+        var _ = await adapter.AnyAsync(e => e.Id == -1);
 
         // Resolve the concrete EFRepo directly and verify it sees the same UoW (constructor-injected)
         var concreteRepo = scope.ServiceProvider.GetRequiredService<

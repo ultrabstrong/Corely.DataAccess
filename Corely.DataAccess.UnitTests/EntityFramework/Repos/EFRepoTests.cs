@@ -44,6 +44,9 @@ public class EFRepoTests : RepoTestsBase
 
     protected override IRepo<EntityFixture> Repo => _efRepo;
 
+    protected override IEnumerable<EntityFixture> Entities =>
+        _dbContext.Set<EntityFixture>().AsEnumerable();
+
     [Fact]
     public async Task CreateAsync_AddsEntity()
     {
