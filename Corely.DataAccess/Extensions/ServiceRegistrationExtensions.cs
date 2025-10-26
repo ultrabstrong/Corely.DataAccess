@@ -5,6 +5,9 @@ using Corely.DataAccess.Interfaces.Repos;
 using Corely.DataAccess.Interfaces.UnitOfWork;
 using Corely.DataAccess.Mock;
 using Corely.DataAccess.Mock.Repos;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Storage;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace Corely.DataAccess.Extensions;
@@ -33,5 +36,62 @@ public static class ServiceRegistrationExtensions
         services.AddScoped(typeof(IReadonlyRepo<>), typeof(MockReadonlyRepo<>));
         services.AddScoped<IUnitOfWorkProvider, MockUoWProvider>();
         return services;
+    }
+
+    /*
+     * FOR TESTING ONLY
+     * Method to ensure schemas exist for the specified DbContext types.
+     * Works whether contexts share the same database/connection or use different ones.
+     * In a real application, use migrations and proper deployment practices.
+     */
+    public static void EnsureSchemasForTestingOnly(this IServiceCollection services)
+    {
+        var provider = services.BuildServiceProvider();
+        using var scope = provider.CreateScope();
+
+        var dbContextTypes = services
+            .Where(sd => typeof(DbContext).IsAssignableFrom(sd.ServiceType))
+            .Select(sd => sd.ServiceType)
+            .Distinct()
+            .ToList();
+
+        foreach (var ctxType in dbContextTypes)
+        {
+            var ctx = (DbContext)scope.ServiceProvider.GetRequiredService(ctxType);
+            try
+            {
+                var creator = ctx.Database.GetService<IDatabaseCreator>();
+                if (creator is IRelationalDatabaseCreator relational)
+                {
+                    // If the database doesn't exist for this context, create it (and its tables)
+                    if (!relational.Exists())
+                    {
+                        ctx.Database.EnsureCreated();
+                    }
+                    else
+                    {
+                        // Database exists; attempt to create tables for this context's model
+                        try
+                        {
+                            relational.CreateTables();
+                        }
+                        catch
+                        {
+                            // Ignore if tables already exist or provider throws for existing tables
+                        }
+                    }
+                }
+                else
+                {
+                    // Non-relational providers (e.g., InMemory)
+                    ctx.Database.EnsureCreated();
+                }
+            }
+            catch
+            {
+                // Fallback
+                ctx.Database.EnsureCreated();
+            }
+        }
     }
 }

@@ -2,9 +2,6 @@
 using Corely.DataAccess.Demo.Configurations;
 using Corely.DataAccess.EntityFramework.Configurations;
 using Corely.DataAccess.Extensions;
-using Microsoft.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore.Infrastructure;
-using Microsoft.EntityFrameworkCore.Storage;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 
@@ -65,58 +62,6 @@ internal static class ServiceRegistration
 
         // Ensure schema exists for the specified DbContexts (order matters for shared in-memory relational providers)
         // NOTE this is for demo purposes; in a real app, use migrations and proper deployment practices
-        services.EnsureSchemas(typeof(DemoDbContext), typeof(DemoDbContext2));
-    }
-
-    /*
-     * Demo-only method to ensure schemas exist for the specified DbContext types.
-     * Works whether contexts share the same database/connection or use different ones.
-     * In a real application, use migrations and proper deployment practices.
-     */
-    private static void EnsureSchemas(
-        this IServiceCollection services,
-        params Type[] dbContextTypes
-    )
-    {
-        var provider = services.BuildServiceProvider();
-        using var scope = provider.CreateScope();
-        foreach (var ctxType in dbContextTypes)
-        {
-            var ctx = (DbContext)scope.ServiceProvider.GetRequiredService(ctxType);
-            try
-            {
-                var creator = ctx.Database.GetService<IDatabaseCreator>();
-                if (creator is IRelationalDatabaseCreator relational)
-                {
-                    // If the database doesn't exist for this context, create it (and its tables)
-                    if (!relational.Exists())
-                    {
-                        ctx.Database.EnsureCreated();
-                    }
-                    else
-                    {
-                        // Database exists; attempt to create tables for this context's model
-                        try
-                        {
-                            relational.CreateTables();
-                        }
-                        catch
-                        {
-                            // Ignore if tables already exist or provider throws for existing tables
-                        }
-                    }
-                }
-                else
-                {
-                    // Non-relational providers (e.g., InMemory)
-                    ctx.Database.EnsureCreated();
-                }
-            }
-            catch
-            {
-                // Fallback
-                ctx.Database.EnsureCreated();
-            }
-        }
+        services.EnsureSchemasForTestingOnly();
     }
 }
