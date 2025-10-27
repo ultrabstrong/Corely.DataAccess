@@ -21,7 +21,7 @@ public interface IEFConfiguration
 | EFInMemoryConfigurationBase | Tests / demos | Provider ignores column types; still supplies placeholders |
 | EFMySqlConfigurationBase | MySQL / MariaDB | UTC defaults via UTC_TIMESTAMP |
 | EFPostgresConfigurationBase | PostgreSQL | UTC defaults via CURRENT_TIMESTAMP |
-| EFSqliteConfigurationBase | SQLite | TEXT + CURRENT_TIMESTAMP defaults; see demo for shared in-memory connection pattern |
+| EFSqliteConfigurationBase | SQLite | TEXT + CURRENT_TIMESTAMP defaults; see below for in-memory sharing |
 
 ### Example
 ```csharp
@@ -42,4 +42,4 @@ services.AddSingleton<IEFConfiguration>(new SqliteDemoConfiguration());
 ### Patterns & Tips
 - Register one singleton IEFConfiguration that your DbContexts can consume.
 - Keep secrets out of code; pass connection strings via configuration.
-- For SQLite in-memory demos across multiple contexts, keep a single shared connection alive or use Cache=Shared.
+- For SQLite in-memory demos across multiple contexts, prefer the named in-memory pattern (Mode=Memory;Cache=Shared) or reuse a single open connection.

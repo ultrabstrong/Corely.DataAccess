@@ -36,7 +36,7 @@ internal static class ServiceRegistration
         var context1Config = new InMemoryDemoConfiguration("DemoDbContext1");
 
         // Uncomment to use Sqlite
-        //var context1Config = new SqliteDemoConfiguration("Data Source=:memory:;Cache=Shared");
+        // var context1Config = new SqliteDemoConfiguration("Data Source=docstodata;Mode=Memory;Cache=Shared");
 
         // Uncomment to use MySQL
         // var context1Config = new MySqlDemoConfiguration("Server=localhost;Port=3306;Database=dataaccessdemo;Uid=root;Pwd=admin;");

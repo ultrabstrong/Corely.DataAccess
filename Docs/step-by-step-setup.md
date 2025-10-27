@@ -46,8 +46,11 @@ internal sealed class SqliteAppConfiguration : EFSqliteConfigurationBase
 
     public SqliteAppConfiguration(string connectionString) : base(connectionString)
     {
-        // need to keep the connection open for in-memory dbs
-        if (connectionString.Contains(":memory:", StringComparison.OrdinalIgnoreCase))
+        // Keep the connection open for in-memory databases so the DB remains alive
+        var csb = new SqliteConnectionStringBuilder(connectionString);
+        var isInMemory = string.Equals(csb.DataSource, ":memory:", StringComparison.OrdinalIgnoreCase)
+                         || csb.Mode == SqliteOpenMode.Memory;
+        if (isInMemory)
         {
             _sqliteConnection = new SqliteConnection(connectionString);
             _sqliteConnection.Open();
@@ -185,7 +188,8 @@ Use the helper to wire repositories. Also register a provider configuration and 
 ```csharp
 var services = new ServiceCollection();
 services.AddLogging(b => b.AddConsole()); // Can replace with your preferred logger
-services.AddSingleton<IEFConfiguration>(new SqliteAppConfiguration("Data Source=:memory:"));
+// Use a named shared in-memory SQLite DB for demos/tests
+services.AddSingleton<IEFConfiguration>(new SqliteAppConfiguration("Data Source=docstodata;Mode=Memory;Cache=Shared"));
 services.AddDbContext<AppDbContext>(); // internal types are fine within your project
 
 // Repos + UoW (standard path)
