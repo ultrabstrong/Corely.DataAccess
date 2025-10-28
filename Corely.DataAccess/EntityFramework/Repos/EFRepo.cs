@@ -17,12 +17,6 @@ internal sealed class EFRepo<TContext, TEntity> : EFReadonlyRepo<TContext, TEnti
         : base(logger, dbContext)
     {
         _uow = uow.ThrowIfNull(nameof(uow));
-        Logger.LogTrace(
-            "{RepoType} created for {EntityType} on {ContextType}",
-            GetType().Name.Split('`')[0],
-            typeof(TEntity).Name,
-            typeof(TContext).Name
-        );
     }
 
     public async Task<TEntity> CreateAsync(

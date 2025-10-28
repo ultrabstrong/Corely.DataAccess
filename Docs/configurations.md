@@ -43,3 +43,62 @@ services.AddSingleton<IEFConfiguration>(new SqliteDemoConfiguration());
 - Register one singleton IEFConfiguration that your DbContexts can consume.
 - Keep secrets out of code; pass connection strings via configuration.
 - For SQLite in-memory demos across multiple contexts, prefer the named in-memory pattern (Mode=Memory;Cache=Shared) or reuse a single open connection.
+
+---
+
+## Logging with EFEventDataLogger (example)
+
+This example shows a provider configuration that wires EF Core diagnostics to `EFEventDataLogger` using `LogTo`, while keeping the SQLite in-memory connection alive.
+
+```csharp
+using Corely.DataAccess.EntityFramework;
+using Corely.DataAccess.EntityFramework.Configurations;
+using Microsoft.Data.Sqlite;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Diagnostics;
+using Microsoft.Extensions.Logging;
+
+internal sealed class SqliteConfiguration : EFSqliteConfigurationBase
+{
+    private readonly SqliteConnection? _sqliteConnection;
+    private readonly Microsoft.Extensions.Logging.ILogger _efLogger;
+
+    public SqliteConfiguration(string connectionString, ILoggerFactory loggerFactory)
+        : base(connectionString)
+    {
+        _efLogger = loggerFactory.CreateLogger("EFCore");
+
+        // need to keep the connection open for in-memory dbs
+        var isInMemory =
+            connectionString.Contains(":memory:", StringComparison.OrdinalIgnoreCase)
+            || connectionString.Contains("Mode=Memory", StringComparison.OrdinalIgnoreCase);
+        if (isInMemory)
+        {
+            _sqliteConnection = new SqliteConnection(connectionString);
+            _sqliteConnection.Open();
+        }
+    }
+
+    public override void Configure(DbContextOptionsBuilder b)
+    {
+        var builder =
+            _sqliteConnection == null
+                ? b.UseSqlite(connectionString)
+                : b.UseSqlite(_sqliteConnection);
+
+        builder.LogTo(
+            logger: (EventData e) =>
+                EFEventDataLogger.Write(_efLogger, e, EFEventDataLogger.WriteInfoLogsAs.Debug),
+            filter: (eventId, _) => eventId.Id == RelationalEventId.CommandExecuted.Id
+        );
+#if DEBUG
+        builder.EnableSensitiveDataLogging().EnableDetailedErrors();
+#endif
+    }
+}
+```
+
+Notes
+- The filter keeps logs focused on executed commands. Remove or relax it for broader diagnostics.
+- In DEBUG, enabling sensitive data and detailed errors is helpful for development.
+- If you prefer an interceptor-based approach, use the `UseCorelyEfLogging` extension provided in `Corely.DataAccess.EntityFramework.Extensions`.

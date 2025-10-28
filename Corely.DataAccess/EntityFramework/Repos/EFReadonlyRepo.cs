@@ -19,12 +19,6 @@ internal class EFReadonlyRepo<TContext, TEntity> : IReadonlyRepo<TEntity>
         Logger = logger.ThrowIfNull(nameof(logger));
         DbContext = context.ThrowIfNull(nameof(context));
         DbSet = context.Set<TEntity>().ThrowIfNull(nameof(context));
-        Logger.LogTrace(
-            "{RepoType} created for {EntityType} on {ContextType}",
-            GetType().Name.Split('`')[0],
-            typeof(TEntity).Name,
-            typeof(TContext).Name
-        );
     }
 
     public Task<TEntity?> GetAsync(
