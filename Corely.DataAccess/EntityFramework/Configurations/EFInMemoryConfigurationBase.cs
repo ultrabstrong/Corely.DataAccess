@@ -9,11 +9,18 @@ public abstract class EFInMemoryConfigurationBase : IEFConfiguration
         // types don't appear to matter for in-memory database
         public string UTCDateColumnType => nameof(UTCDateColumnType);
         public string UTCDateColumnDefaultValue => nameof(UTCDateColumnDefaultValue);
+        public string UuidColumnType => nameof(UuidColumnType);
+        public string UuidColumnDefaultValue => nameof(UuidColumnDefaultValue);
+        public string JsonColumnType => nameof(JsonColumnType);
+        public string BoolColumnType => nameof(BoolColumnType);
+        public string DecimalColumnType => nameof(DecimalColumnType);
+        public string DecimalColumnDefaultValue => nameof(DecimalColumnDefaultValue);
+        public string BigIntColumnType => nameof(BigIntColumnType);
     }
 
     private readonly EFDbTypes _efDbTypes = new();
 
     public abstract void Configure(DbContextOptionsBuilder optionsBuilder);
 
-    public IEFDbTypes GetDbTypes() => _efDbTypes;
+    public virtual IEFDbTypes GetDbTypes() => _efDbTypes;
 }

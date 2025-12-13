@@ -11,6 +11,13 @@ public class EntityTypeBuilderExtensionsTests
     {
         public string UTCDateColumnType => "datetime";
         public string UTCDateColumnDefaultValue => "CURRENT_TIMESTAMP";
+        public string UuidColumnType => "TEXT";
+        public string UuidColumnDefaultValue => "''";
+        public string JsonColumnType => "TEXT";
+        public string BoolColumnType => "INTEGER";
+        public string DecimalColumnType => "TEXT";
+        public string DecimalColumnDefaultValue => "'0'";
+        public string BigIntColumnType => "INTEGER";
     }
 
     private sealed class PersonEntity : IHasIdPk<int>, IHasCreatedUtc, IHasModifiedUtc

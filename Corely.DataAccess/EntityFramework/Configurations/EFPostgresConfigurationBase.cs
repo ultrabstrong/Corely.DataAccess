@@ -9,6 +9,13 @@ public abstract class EFPostgresConfigurationBase : IEFConfiguration
     {
         public string UTCDateColumnType => "TIMESTAMP";
         public string UTCDateColumnDefaultValue => "CURRENT_TIMESTAMP";
+        public string UuidColumnType => "UUID";
+        public string UuidColumnDefaultValue => "gen_random_uuid()";
+        public string JsonColumnType => "JSONB";
+        public string BoolColumnType => "BOOLEAN";
+        public string DecimalColumnType => "NUMERIC(19,4)";
+        public string DecimalColumnDefaultValue => "0";
+        public string BigIntColumnType => "BIGINT";
     }
 
     private readonly EFDbTypes _efDbTypes = new();
@@ -21,5 +28,5 @@ public abstract class EFPostgresConfigurationBase : IEFConfiguration
 
     public abstract void Configure(DbContextOptionsBuilder optionsBuilder);
 
-    public IEFDbTypes GetDbTypes() => _efDbTypes;
+    public virtual IEFDbTypes GetDbTypes() => _efDbTypes;
 }

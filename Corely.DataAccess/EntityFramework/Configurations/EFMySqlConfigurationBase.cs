@@ -9,6 +9,13 @@ public abstract class EFMySqlConfigurationBase : IEFConfiguration
     {
         public string UTCDateColumnType => "TIMESTAMP";
         public string UTCDateColumnDefaultValue => "(UTC_TIMESTAMP)";
+        public string UuidColumnType => "CHAR(36)";
+        public string UuidColumnDefaultValue => "(UUID())";
+        public string JsonColumnType => "JSON";
+        public string BoolColumnType => "TINYINT(1)";
+        public string DecimalColumnType => "DECIMAL(19,4)";
+        public string DecimalColumnDefaultValue => "0";
+        public string BigIntColumnType => "BIGINT";
     }
 
     private readonly EFDbTypes _efDbTypes = new();
@@ -21,5 +28,5 @@ public abstract class EFMySqlConfigurationBase : IEFConfiguration
 
     public abstract void Configure(DbContextOptionsBuilder optionsBuilder);
 
-    public IEFDbTypes GetDbTypes() => _efDbTypes;
+    public virtual IEFDbTypes GetDbTypes() => _efDbTypes;
 }
