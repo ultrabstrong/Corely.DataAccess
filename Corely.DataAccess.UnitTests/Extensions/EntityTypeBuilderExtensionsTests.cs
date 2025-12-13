@@ -1,4 +1,5 @@
-﻿using Corely.DataAccess.Extensions;
+﻿using Corely.DataAccess;
+using Corely.DataAccess.Extensions;
 using Corely.DataAccess.UnitTests.Fixtures;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata;
@@ -14,7 +15,7 @@ public class EntityTypeBuilderExtensionsTests
         public DateTime? ModifiedUtc { get; set; }
     }
 
-    private readonly EFDbTypesFixture _efDbTypes = new();
+    private readonly EFDbTypesFixture _dbTypes = new();
 
     [Fact]
     public void ConfigureTable_SetsTableName()
@@ -74,15 +75,15 @@ public class EntityTypeBuilderExtensionsTests
         var modelBuilder = new ModelBuilder();
         var entityBuilder = modelBuilder.Entity<EntityFixture>();
 
-        Assert.Equal(entityBuilder, entityBuilder.ConfigureCreatedUtc(_efDbTypes));
+        Assert.Equal(entityBuilder, entityBuilder.ConfigureCreatedUtc(_dbTypes));
 
         var entityType = modelBuilder.Model.FindEntityType(typeof(EntityFixture));
         Assert.NotNull(entityType);
 
         var createdUtcProperty = entityType.FindProperty(nameof(EntityFixture.CreatedUtc));
         Assert.NotNull(createdUtcProperty);
-        Assert.Equal(_efDbTypes.UTCDateColumnType, createdUtcProperty.GetColumnType());
-        Assert.Equal(_efDbTypes.UTCDateColumnDefaultValue, createdUtcProperty.GetDefaultValueSql());
+        Assert.Equal(_dbTypes.UTCDateColumnType, createdUtcProperty.GetColumnType());
+        Assert.Equal(_dbTypes.UTCDateColumnDefaultValue, createdUtcProperty.GetDefaultValueSql());
         Assert.False(createdUtcProperty.IsNullable);
     }
 
@@ -92,7 +93,7 @@ public class EntityTypeBuilderExtensionsTests
         var modelBuilder = new ModelBuilder();
         var entityBuilder = modelBuilder.Entity<FixtureEntity>();
 
-        Assert.Equal(entityBuilder, entityBuilder.ConfigureCreatedUtc(_efDbTypes));
+        Assert.Equal(entityBuilder, entityBuilder.ConfigureCreatedUtc(_dbTypes));
 
         var entityType = modelBuilder.Model.FindEntityType(typeof(FixtureEntity));
         Assert.NotNull(entityType);
@@ -107,14 +108,14 @@ public class EntityTypeBuilderExtensionsTests
         var modelBuilder = new ModelBuilder();
         var entityBuilder = modelBuilder.Entity<EntityFixture>();
 
-        Assert.Equal(entityBuilder, entityBuilder.ConfigureModifiedUtc(_efDbTypes));
+        Assert.Equal(entityBuilder, entityBuilder.ConfigureModifiedUtc(_dbTypes));
 
         var entityType = modelBuilder.Model.FindEntityType(typeof(EntityFixture));
         Assert.NotNull(entityType);
 
         var modifiedUtcProperty = entityType.FindProperty(nameof(EntityFixture.ModifiedUtc));
         Assert.NotNull(modifiedUtcProperty);
-        Assert.Equal(_efDbTypes.UTCDateColumnType, modifiedUtcProperty.GetColumnType());
+        Assert.Equal(_dbTypes.UTCDateColumnType, modifiedUtcProperty.GetColumnType());
         Assert.Null(modifiedUtcProperty.GetDefaultValueSql());
         Assert.True(modifiedUtcProperty.IsNullable);
     }
@@ -125,7 +126,7 @@ public class EntityTypeBuilderExtensionsTests
         var modelBuilder = new ModelBuilder();
         var entityBuilder = modelBuilder.Entity<FixtureEntity>();
 
-        Assert.Equal(entityBuilder, entityBuilder.ConfigureModifiedUtc(_efDbTypes));
+        Assert.Equal(entityBuilder, entityBuilder.ConfigureModifiedUtc(_dbTypes));
 
         var entityType = modelBuilder.Model.FindEntityType(typeof(FixtureEntity));
         Assert.NotNull(entityType);

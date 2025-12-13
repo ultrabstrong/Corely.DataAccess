@@ -1,9 +1,11 @@
-﻿using Corely.DataAccess.EntityFramework.Configurations;
+﻿using Corely.DataAccess;
 
 namespace Corely.DataAccess.UnitTests.Fixtures;
 
-internal class EFDbTypesFixture : IEFDbTypes
+internal class EFDbTypesFixture : IDbTypes
 {
+    public string ConfiguredForDatabaseType => nameof(ConfiguredForDatabaseType);
+
     public string UTCDateColumnType => nameof(UTCDateColumnType);
 
     public string UTCDateColumnDefaultValue => nameof(UTCDateColumnDefaultValue);

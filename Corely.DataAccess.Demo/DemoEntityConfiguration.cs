@@ -3,8 +3,8 @@ using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
 namespace Corely.DataAccess.Demo;
 
-internal class DemoEntityConfiguration(IEFDbTypes efDbTypes)
-    : EntityConfigurationBase<DemoEntity, int>(efDbTypes)
+internal class DemoEntityConfiguration(IDbTypes dbTypes)
+    : EntityConfigurationBase<DemoEntity, int>(dbTypes)
 {
     // You can override ConfigureInternal to add additional configuration
     protected override void ConfigureInternal(EntityTypeBuilder<DemoEntity> builder)
@@ -14,5 +14,5 @@ internal class DemoEntityConfiguration(IEFDbTypes efDbTypes)
     }
 }
 
-internal class DemoEntity2Configuration(IEFDbTypes efDbTypes)
-    : EntityConfigurationBase<DemoEntity2, int>(efDbTypes) { }
+internal class DemoEntity2Configuration(IDbTypes dbTypes)
+    : EntityConfigurationBase<DemoEntity2, int>(dbTypes) { }

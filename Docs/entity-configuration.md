@@ -8,7 +8,7 @@ Entity configuration base classes reduce repetition for common persistence conce
 Provides (for any class entity):
 - Table name normalization from class name
 - CreatedUtc & ModifiedUtc column mapping when marker interfaces implemented
-- Provider-agnostic column type + default value via injected IEFDbTypes
+- Provider-agnostic column type + default value via injected IDbTypes
 - Hook (ConfigureInternal) for custom property/index/relationship config
 
 Intentionally does NOT configure a primary key.
@@ -32,7 +32,7 @@ Markers:
 
 ### How CreatedUtc works (IHasCreatedUtc)
 - Mapping
-  - Column type and default SQL are provided by IEFDbTypes (per provider).
+  - Column type and default SQL are provided by IDbTypes (per provider).
   - ValueGeneratedOnAdd is applied.
   - EF Core save behaviors are set to Ignore before and after save, so EF does not attempt to write or update CreatedUtc; the database sets it on insert and it remains immutable thereafter.
 - Insert semantics
@@ -46,7 +46,7 @@ Markers:
 
 ### How ModifiedUtc works (IHasModifiedUtc)
 - Mapping
-  - Column type is configured via IEFDbTypes. No default value is set; the property is nullable.
+  - Column type is configured via IDbTypes. No default value is set; the property is nullable.
 - Update semantics
   - The EF repository (EFRepo.UpdateAsync) sets ModifiedUtc = DateTime.UtcNow on updates for entities implementing IHasModifiedUtc. This happens when calling UpdateAsync, not at transaction commit.
   - If you need commit-time or database-side timestamps (e.g., triggers), disable the repo behavior and implement it via EF interceptors or database triggers.
@@ -59,7 +59,7 @@ Markers:
 ```csharp
 internal sealed class DemoEntityConfiguration : EntityConfigurationBase<DemoEntity, int>
 {
-    public DemoEntityConfiguration(IEFDbTypes db) : base(db) {}
+    public DemoEntityConfiguration(IDbTypes db) : base(db) {}
     protected override void ConfigureInternal(EntityTypeBuilder<DemoEntity> b)
     {
         b.Property(e => e.Name).HasMaxLength(128).IsRequired();

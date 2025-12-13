@@ -1,5 +1,4 @@
-﻿using Corely.DataAccess.EntityFramework.Configurations;
-using Corely.DataAccess.Interfaces.Entities;
+﻿using Corely.DataAccess.Interfaces.Entities;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
@@ -38,7 +37,7 @@ public static class EntityTypeBuilderExtensions
 
     public static EntityTypeBuilder<TEntity> ConfigureCreatedUtc<TEntity>(
         this EntityTypeBuilder<TEntity> builder,
-        IEFDbTypes efDbTypes
+        IDbTypes dbTypes
     )
         where TEntity : class
     {
@@ -46,12 +45,12 @@ public static class EntityTypeBuilderExtensions
         {
             var prop = builder
                 .Property(e => ((IHasCreatedUtc)e).CreatedUtc)
-                .HasColumnType(efDbTypes.UTCDateColumnType)
-                .HasDefaultValueSql(efDbTypes.UTCDateColumnDefaultValue)
+                .HasColumnType(dbTypes.UTCDateColumnType)
+                .HasDefaultValueSql(dbTypes.UTCDateColumnDefaultValue)
                 .ValueGeneratedOnAdd()
                 .IsRequired();
 
-            // Ensure EF doesn’t try to write CreatedUtc on insert/update; let the DB set it once
+            // Ensure EF doesn't try to write CreatedUtc on insert/update; let the DB set it once
             prop.Metadata.SetBeforeSaveBehavior(PropertySaveBehavior.Ignore);
             prop.Metadata.SetAfterSaveBehavior(PropertySaveBehavior.Ignore);
         }
@@ -61,7 +60,7 @@ public static class EntityTypeBuilderExtensions
 
     public static EntityTypeBuilder<TEntity> ConfigureModifiedUtc<TEntity>(
         this EntityTypeBuilder<TEntity> builder,
-        IEFDbTypes efDbTypes
+        IDbTypes dbTypes
     )
         where TEntity : class
     {
@@ -69,7 +68,7 @@ public static class EntityTypeBuilderExtensions
         {
             builder
                 .Property(e => ((IHasModifiedUtc)e).ModifiedUtc)
-                .HasColumnType(efDbTypes.UTCDateColumnType);
+                .HasColumnType(dbTypes.UTCDateColumnType);
         }
 
         return builder;

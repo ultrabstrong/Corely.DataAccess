@@ -9,16 +9,17 @@ Configurations abstract EF Core provider setup and unify DB-specific type metada
 public interface IEFConfiguration
 {
     void Configure(DbContextOptionsBuilder optionsBuilder);
-    IEFDbTypes GetDbTypes();
+    IDbTypes GetDbTypes();
 }
 ```
 - Configure is called by your DbContext.OnConfiguring when options aren't already configured.
 - GetDbTypes provides a set of provider-specific type hints used by entity configuration helpers.
 
-## IEFDbTypes
+## IDbTypes
 ```csharp
-public interface IEFDbTypes
+public interface IDbTypes
 {
+    string ConfiguredForDatabaseType { get; }
     string UTCDateColumnType { get; }
     string UTCDateColumnDefaultValue { get; }
     string UuidColumnType { get; }
@@ -35,6 +36,7 @@ public interface IEFDbTypes
 
 | Property | MySQL | PostgreSQL | SQLite |
 |----------|-------|------------|--------|
+| ConfiguredForDatabaseType | `MySql` | `PostgreSql` | `Sqlite` |
 | UTCDateColumnType | `TIMESTAMP` | `TIMESTAMP` | `TEXT` |
 | UTCDateColumnDefaultValue | `(UTC_TIMESTAMP)` | `CURRENT_TIMESTAMP` | `CURRENT_TIMESTAMP` |
 | UuidColumnType | `CHAR(36)` | `UUID` | `TEXT` |
@@ -44,6 +46,13 @@ public interface IEFDbTypes
 | DecimalColumnType | `DECIMAL(19,4)` | `NUMERIC(19,4)` | `TEXT` |
 | DecimalColumnDefaultValue | `0` | `0` | `'0'` |
 | BigIntColumnType | `BIGINT` | `BIGINT` | `INTEGER` |
+
+### Standalone DbTypes Classes
+The following classes implement `IDbTypes` and are available in the `Corely.DataAccess` namespace:
+- `MySqlDbTypes`
+- `PostgreSqlDbTypes`
+- `SqliteDbTypes`
+- `InMemoryDbTypes`
 
 ## Provided Base Classes
 | Base | Use Case | Notes |
@@ -69,27 +78,38 @@ The `GetDbTypes()` method is virtual on all base classes, allowing you to overri
 ```csharp
 internal sealed class CustomMySqlConfiguration : EFMySqlConfigurationBase
 {
-private readonly CustomDbTypes _customTypes = new();
+    private readonly CustomDbTypes _customTypes = new();
 
     public CustomMySqlConfiguration(string cs) : base(cs) {}
 
     public override void Configure(DbContextOptionsBuilder b)
-     => b.UseMySql(connectionString, new MySqlServerVersion(new Version(8,0,36)));
+   => b.UseMySql(connectionString, new MySqlServerVersion(new Version(8,0,36)));
 
-    public override IEFDbTypes GetDbTypes() => _customTypes;
+    public override IDbTypes GetDbTypes() => _customTypes;
 
-    private class CustomDbTypes : IEFDbTypes
+    private class CustomDbTypes : IDbTypes
     {
+        public string ConfiguredForDatabaseType => DatabaseType.MySql;
         public string UTCDateColumnType => "DATETIME";
-     public string UTCDateColumnDefaultValue => "(NOW())";
-      public string UuidColumnType => "BINARY(16)";
+        public string UTCDateColumnDefaultValue => "(NOW())";
+        public string UuidColumnType => "BINARY(16)";
         public string UuidColumnDefaultValue => "(UUID_TO_BIN(UUID()))";
         public string JsonColumnType => "JSON";
         public string BoolColumnType => "TINYINT(1)";
         public string DecimalColumnType => "DECIMAL(18,2)";
-  public string DecimalColumnDefaultValue => "0.00";
+        public string DecimalColumnDefaultValue => "0.00";
         public string BigIntColumnType => "BIGINT";
     }
+}
+```
+
+Alternatively, inherit from a provider-specific DbTypes class and override only the properties you need:
+
+```csharp
+public class CustomMySqlDbTypes : MySqlDbTypes
+{
+    public override string DecimalColumnType => "DECIMAL(18,2)";
+    public override string DecimalColumnDefaultValue => "0.00";
 }
 ```
 
@@ -125,36 +145,36 @@ internal sealed class SqliteConfiguration : EFSqliteConfigurationBase
 
     public SqliteConfiguration(string connectionString, ILoggerFactory loggerFactory)
         : base(connectionString)
-    {
+  {
         _efLogger = loggerFactory.CreateLogger("EFCore");
 
         // need to keep the connection open for in-memory dbs
-        var isInMemory =
-            connectionString.Contains(":memory:", StringComparison.OrdinalIgnoreCase)
-     || connectionString.Contains("Mode=Memory", StringComparison.OrdinalIgnoreCase);
-        if (isInMemory)
-        {
-     _sqliteConnection = new SqliteConnection(connectionString);
-       _sqliteConnection.Open();
+  var isInMemory =
+        connectionString.Contains(":memory:", StringComparison.OrdinalIgnoreCase)
+   || connectionString.Contains("Mode=Memory", StringComparison.OrdinalIgnoreCase);
+   if (isInMemory)
+     {
+            _sqliteConnection = new SqliteConnection(connectionString);
+            _sqliteConnection.Open();
  }
-    }
+ }
 
     public override void Configure(DbContextOptionsBuilder b)
     {
         var builder =
     _sqliteConnection == null
-                ? b.UseSqlite(connectionString)
-   : b.UseSqlite(_sqliteConnection);
+          ? b.UseSqlite(connectionString)
+          : b.UseSqlite(_sqliteConnection);
 
-  builder.LogTo(
-    logger: (EventData e) =>
-             EFEventDataLogger.Write(_efLogger, e, EFEventDataLogger.WriteInfoLogsAs.Debug),
-            filter: (eventId, _) => eventId.Id == RelationalEventId.CommandExecuted.Id
+        builder.LogTo(
+         logger: (EventData e) =>
+           EFEventDataLogger.Write(_efLogger, e, EFEventDataLogger.WriteInfoLogsAs.Debug),
+          filter: (eventId, _) => eventId.Id == RelationalEventId.CommandExecuted.Id
         );
 #if DEBUG
         builder.EnableSensitiveDataLogging().EnableDetailedErrors();
 #endif
-    }
+  }
 }
 ```
 

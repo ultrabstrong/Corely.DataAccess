@@ -1,3 +1,4 @@
+using Corely.DataAccess;
 using Corely.DataAccess.EntityFramework.Configurations;
 using Corely.DataAccess.Interfaces.Entities;
 using Microsoft.EntityFrameworkCore;
@@ -7,8 +8,9 @@ namespace Corely.DataAccess.UnitTests.EntityFramework.Configuration;
 
 public class EntityTypeBuilderExtensionsTests
 {
-    private sealed class DummyDbTypes : IEFDbTypes
+    private sealed class DummyDbTypes : IDbTypes
     {
+        public string ConfiguredForDatabaseType => "Dummy";
         public string UTCDateColumnType => "datetime";
         public string UTCDateColumnDefaultValue => "CURRENT_TIMESTAMP";
         public string UuidColumnType => "TEXT";
@@ -34,7 +36,7 @@ public class EntityTypeBuilderExtensionsTests
         public string? Title { get; set; }
     }
 
-    private sealed class PersonEntityConfiguration(IEFDbTypes db)
+    private sealed class PersonEntityConfiguration(IDbTypes db)
         : EntityConfigurationBase<PersonEntity, int>(db)
     {
         protected override void ConfigureInternal(
@@ -45,7 +47,7 @@ public class EntityTypeBuilderExtensionsTests
         }
     }
 
-    private sealed class NewsConfiguration(IEFDbTypes db) : EntityConfigurationBase<News, int>(db)
+    private sealed class NewsConfiguration(IDbTypes db) : EntityConfigurationBase<News, int>(db)
     {
         protected override void ConfigureInternal(
             Microsoft.EntityFrameworkCore.Metadata.Builders.EntityTypeBuilder<News> b

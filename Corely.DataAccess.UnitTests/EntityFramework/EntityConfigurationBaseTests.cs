@@ -1,4 +1,5 @@
-﻿using Corely.DataAccess.EntityFramework.Configurations;
+﻿using Corely.DataAccess;
+using Corely.DataAccess.EntityFramework.Configurations;
 using Corely.DataAccess.UnitTests.Fixtures;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
@@ -9,11 +10,11 @@ public class EntityConfigurationBaseTests
 {
     private class TestEntityConfiguration : EntityConfigurationBase<EntityFixture>
     {
-        public bool IsEFDbTypesSet => EFDbTypes != null;
+        public bool IsDbTypesSet => DbTypes != null;
         public bool ConfigureInternalCalled { get; private set; }
 
-        public TestEntityConfiguration(IEFDbTypes efDbTypes)
-            : base(efDbTypes) { }
+        public TestEntityConfiguration(IDbTypes dbTypes)
+            : base(dbTypes) { }
 
         protected override void ConfigureInternal(EntityTypeBuilder<EntityFixture> builder)
         {
@@ -23,11 +24,11 @@ public class EntityConfigurationBaseTests
 
     private class TestEntityConfigurationWithKey : EntityConfigurationBase<EntityFixture, int>
     {
-        public bool IsEFDbTypesSet => EFDbTypes != null;
+        public bool IsDbTypesSet => DbTypes != null;
         public bool ConfigureInternalCalled { get; private set; }
 
-        public TestEntityConfigurationWithKey(IEFDbTypes efDbTypes)
-            : base(efDbTypes) { }
+        public TestEntityConfigurationWithKey(IDbTypes dbTypes)
+            : base(dbTypes) { }
 
         protected override void ConfigureInternal(EntityTypeBuilder<EntityFixture> builder)
         {
@@ -35,18 +36,18 @@ public class EntityConfigurationBaseTests
         }
     }
 
-    private readonly EFDbTypesFixture _efDbTypes = new();
+    private readonly EFDbTypesFixture _dbTypes = new();
 
     [Fact]
     public void Configure_CallsConfigureInternal()
     {
         var modelBuilder = new ModelBuilder();
         var entityBuilder = modelBuilder.Entity<EntityFixture>();
-        var entityConfiguration = new TestEntityConfiguration(_efDbTypes);
+        var entityConfiguration = new TestEntityConfiguration(_dbTypes);
 
         entityConfiguration.Configure(entityBuilder);
 
-        Assert.True(entityConfiguration.IsEFDbTypesSet);
+        Assert.True(entityConfiguration.IsDbTypesSet);
         Assert.True(entityConfiguration.ConfigureInternalCalled);
 
         var entityType = modelBuilder.Model.FindEntityType(typeof(EntityFixture));
@@ -62,11 +63,11 @@ public class EntityConfigurationBaseTests
     {
         var modelBuilder = new ModelBuilder();
         var entityBuilder = modelBuilder.Entity<EntityFixture>();
-        var entityConfiguration = new TestEntityConfigurationWithKey(_efDbTypes);
+        var entityConfiguration = new TestEntityConfigurationWithKey(_dbTypes);
 
         entityConfiguration.Configure(entityBuilder);
 
-        Assert.True(entityConfiguration.IsEFDbTypesSet);
+        Assert.True(entityConfiguration.IsDbTypesSet);
         Assert.True(entityConfiguration.ConfigureInternalCalled);
 
         var entityType = modelBuilder.Model.FindEntityType(typeof(EntityFixture));

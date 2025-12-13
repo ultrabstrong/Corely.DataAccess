@@ -6,5 +6,5 @@ public interface IEFConfiguration
 {
     void Configure(DbContextOptionsBuilder optionsBuilder);
 
-    IEFDbTypes GetDbTypes();
+    IDbTypes GetDbTypes();
 }

@@ -9,11 +9,11 @@ namespace Corely.DataAccess.EntityFramework.Configurations;
 public abstract class EntityConfigurationBase<TEntity, TKey> : IEntityTypeConfiguration<TEntity>
     where TEntity : class, IHasIdPk<TKey>
 {
-    protected readonly IEFDbTypes EFDbTypes;
+    protected readonly IDbTypes DbTypes;
 
-    protected EntityConfigurationBase(IEFDbTypes efDbTypes)
+    protected EntityConfigurationBase(IDbTypes dbTypes)
     {
-        EFDbTypes = efDbTypes.ThrowIfNull(nameof(efDbTypes));
+        DbTypes = dbTypes.ThrowIfNull(nameof(dbTypes));
     }
 
     public void Configure(EntityTypeBuilder<TEntity> builder)
@@ -21,8 +21,8 @@ public abstract class EntityConfigurationBase<TEntity, TKey> : IEntityTypeConfig
         builder = builder
             .ConfigureTable()
             .ConfigureIdPk<TEntity, TKey>()
-            .ConfigureCreatedUtc(EFDbTypes)
-            .ConfigureModifiedUtc(EFDbTypes);
+            .ConfigureCreatedUtc(DbTypes)
+            .ConfigureModifiedUtc(DbTypes);
         ConfigureInternal(builder);
     }
 
@@ -32,19 +32,19 @@ public abstract class EntityConfigurationBase<TEntity, TKey> : IEntityTypeConfig
 public abstract class EntityConfigurationBase<TEntity> : IEntityTypeConfiguration<TEntity>
     where TEntity : class
 {
-    protected readonly IEFDbTypes EFDbTypes;
+    protected readonly IDbTypes DbTypes;
 
-    protected EntityConfigurationBase(IEFDbTypes efDbTypes)
+    protected EntityConfigurationBase(IDbTypes dbTypes)
     {
-        EFDbTypes = efDbTypes.ThrowIfNull(nameof(efDbTypes));
+        DbTypes = dbTypes.ThrowIfNull(nameof(dbTypes));
     }
 
     public void Configure(EntityTypeBuilder<TEntity> builder)
     {
         builder = builder
             .ConfigureTable()
-            .ConfigureCreatedUtc(EFDbTypes)
-            .ConfigureModifiedUtc(EFDbTypes);
+            .ConfigureCreatedUtc(DbTypes)
+            .ConfigureModifiedUtc(DbTypes);
 
         ConfigureInternal(builder);
     }
