@@ -9,6 +9,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Storage;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 
 namespace Corely.DataAccess.Extensions;
 
@@ -18,23 +19,26 @@ public static class ServiceRegistrationExtensions
         this IServiceCollection services
     )
     {
-        services.AddSingleton<IEFContextResolver>(sp => new EFContextResolver(sp));
-        services.AddScoped(typeof(EFReadonlyRepo<,>), typeof(EFReadonlyRepo<,>));
-        services.AddScoped(typeof(EFRepo<,>), typeof(EFRepo<,>));
-        services.AddScoped(typeof(IReadonlyRepo<>), typeof(EFReadonlyRepoAdapter<>));
-        services.AddScoped(typeof(IRepo<>), typeof(EFRepoAdapter<>));
+        services.TryAddSingleton<IEFContextResolver>(sp => new EFContextResolver(sp));
+        services.TryAddScoped(typeof(EFReadonlyRepo<,>), typeof(EFReadonlyRepo<,>));
+        services.TryAddScoped(typeof(EFRepo<,>), typeof(EFRepo<,>));
+        services.TryAddScoped(typeof(IReadonlyRepo<>), typeof(EFReadonlyRepoAdapter<>));
+        services.TryAddScoped(typeof(IRepo<>), typeof(EFRepoAdapter<>));
 
-        // Register a single scoped EFUoWProvider instance per scope and expose it via the interface
-        services.AddScoped<EFUoWProvider>();
-        services.AddScoped<IUnitOfWorkProvider>(sp => sp.GetRequiredService<EFUoWProvider>());
+        // Register EFUoWProvider as concrete type because EFRepo injects it directly
+        // to access EF-specific members (IsActive, Register) not exposed on IUnitOfWorkProvider.
+        // The interface registration forwards to the same scoped instance so consumers
+        // resolving IUnitOfWorkProvider get the same instance as the repos.
+        services.TryAddScoped<EFUoWProvider>();
+        services.TryAddScoped<IUnitOfWorkProvider>(sp => sp.GetRequiredService<EFUoWProvider>());
         return services;
     }
 
     public static IServiceCollection RegisterMockReposAndUoW(this IServiceCollection services)
     {
-        services.AddScoped(typeof(IRepo<>), typeof(MockRepo<>));
-        services.AddScoped(typeof(IReadonlyRepo<>), typeof(MockReadonlyRepo<>));
-        services.AddScoped<IUnitOfWorkProvider, MockUoWProvider>();
+        services.TryAddScoped(typeof(IRepo<>), typeof(MockRepo<>));
+        services.TryAddScoped(typeof(IReadonlyRepo<>), typeof(MockReadonlyRepo<>));
+        services.TryAddScoped<IUnitOfWorkProvider, MockUoWProvider>();
         return services;
     }
 
