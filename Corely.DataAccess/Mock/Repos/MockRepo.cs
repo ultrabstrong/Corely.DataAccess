@@ -23,7 +23,7 @@ public class MockRepo<TEntity> : IRepo<TEntity>
             .GetType()
             .GetInterfaces()
             .FirstOrDefault(i =>
-                i.IsGenericType && i.GetGenericTypeDefinition() == typeof(IHasIdPk<>)
+                i.IsGenericType && i.GetGenericTypeDefinition() == typeof(IHasGeneratedIdPk<>)
             );
 
         if (idInterface == null)

@@ -22,7 +22,7 @@ public class EntityTypeBuilderExtensionsTests
         public string BigIntColumnType => "INTEGER";
     }
 
-    private sealed class PersonEntity : IHasIdPk<int>, IHasCreatedUtc, IHasModifiedUtc
+    private sealed class PersonEntity : IHasGeneratedIdPk<int>, IHasCreatedUtc, IHasModifiedUtc
     {
         public int Id { get; set; }
         public DateTime CreatedUtc { get; set; }
@@ -30,7 +30,7 @@ public class EntityTypeBuilderExtensionsTests
         public string? Name { get; set; }
     }
 
-    private sealed class News : IHasIdPk<int>
+    private sealed class News : IHasGeneratedIdPk<int>
     {
         public int Id { get; set; }
         public string? Title { get; set; }

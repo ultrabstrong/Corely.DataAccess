@@ -28,10 +28,13 @@ public static class EntityTypeBuilderExtensions
     public static EntityTypeBuilder<TEntity> ConfigureIdPk<TEntity, TKey>(
         this EntityTypeBuilder<TEntity> builder
     )
-        where TEntity : class, IHasIdPk<TKey>
+        where TEntity : class
     {
-        builder.HasKey(e => e.Id);
-        builder.Property(e => e.Id).ValueGeneratedOnAdd();
+        if (typeof(IHasGeneratedIdPk<TKey>).IsAssignableFrom(typeof(TEntity)))
+        {
+            builder.HasKey(e => ((IHasGeneratedIdPk<TKey>)e).Id);
+            builder.Property(e => ((IHasGeneratedIdPk<TKey>)e).Id).ValueGeneratedOnAdd();
+        }
         return builder;
     }
 

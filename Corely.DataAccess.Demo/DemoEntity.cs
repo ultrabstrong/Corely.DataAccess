@@ -2,7 +2,7 @@
 
 namespace Corely.DataAccess.Demo;
 
-internal class DemoEntity : IHasIdPk<int>, IHasCreatedUtc, IHasModifiedUtc
+internal class DemoEntity : IHasGeneratedIdPk<int>, IHasCreatedUtc, IHasModifiedUtc
 {
     // Custom property ; need to configure manually
     public string Name { get; set; } = string.Empty;
@@ -13,7 +13,7 @@ internal class DemoEntity : IHasIdPk<int>, IHasCreatedUtc, IHasModifiedUtc
     public DateTime? ModifiedUtc { get; set; }
 }
 
-internal class DemoEntity2 : IHasIdPk<int>, IHasCreatedUtc, IHasModifiedUtc
+internal class DemoEntity2 : IHasGeneratedIdPk<int>, IHasCreatedUtc, IHasModifiedUtc
 {
     // Custom property ; need to configure manually
     public string Name { get; set; } = string.Empty;

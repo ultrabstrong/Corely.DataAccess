@@ -34,13 +34,11 @@ internal class Program
         var repo = provider.GetRequiredService<IRepo<DemoEntity>>();
         if (!await repo.AnyAsync(e => e.Id > 0))
         {
-            await repo.CreateAsync(
-                [
-                    new DemoEntity { Name = "Cat" },
-                    new DemoEntity { Name = "Dog" },
-                    new DemoEntity { Name = "Fox" },
-                ]
-            );
+            await repo.CreateAsync([
+                new DemoEntity { Name = "Cat" },
+                new DemoEntity { Name = "Dog" },
+                new DemoEntity { Name = "Fox" },
+            ]);
         }
         var list = await repo.ListAsync();
         Console.WriteLine($"Entities: {string.Join(", ", list.Select(e => e.Name))}");

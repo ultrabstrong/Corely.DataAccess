@@ -16,7 +16,8 @@ internal sealed class AsyncQueryProvider : IAsyncQueryProvider
     {
         ArgumentNullException.ThrowIfNull(expression);
         var elementType =
-            expression.Type.GetGenericArguments().FirstOrDefault() ?? expression
+            expression.Type.GetGenericArguments().FirstOrDefault()
+            ?? expression
                 .Type.GetInterfaces()
                 .FirstOrDefault(i => i.IsGenericType)
                 ?.GetGenericArguments()
