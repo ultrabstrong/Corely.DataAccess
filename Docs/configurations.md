@@ -34,24 +34,25 @@ public interface IDbTypes
 
 ### Provider Type Mappings
 
-| Property | MySQL | PostgreSQL | SQLite |
-|----------|-------|------------|--------|
-| ConfiguredForDatabaseType | `MySql` | `PostgreSql` | `Sqlite` |
-| UTCDateColumnType | `TIMESTAMP` | `TIMESTAMP` | `TEXT` |
-| UTCDateColumnDefaultValue | `(UTC_TIMESTAMP)` | `CURRENT_TIMESTAMP` | `CURRENT_TIMESTAMP` |
-| UuidColumnType | `CHAR(36)` | `UUID` | `TEXT` |
-| UuidColumnDefaultValue | `(UUID())` | `gen_random_uuid()` | *(randomblob expression)* |
-| JsonColumnType | `JSON` | `JSONB` | `TEXT` |
-| BoolColumnType | `TINYINT(1)` | `BOOLEAN` | `INTEGER` |
-| DecimalColumnType | `DECIMAL(19,4)` | `NUMERIC(19,4)` | `TEXT` |
-| DecimalColumnDefaultValue | `0` | `0` | `'0'` |
-| BigIntColumnType | `BIGINT` | `BIGINT` | `INTEGER` |
+| Property | MySQL | PostgreSQL | SQLite | MS SQL |
+|----------|-------|------------|--------|--------|
+| ConfiguredForDatabaseType | `MySql` | `PostgreSql` | `Sqlite` | `MsSql` |
+| UTCDateColumnType | `TIMESTAMP` | `TIMESTAMP` | `TEXT` | `DATETIME2` |
+| UTCDateColumnDefaultValue | `(UTC_TIMESTAMP)` | `CURRENT_TIMESTAMP` | `CURRENT_TIMESTAMP` | `(SYSUTCDATETIME())` |
+| UuidColumnType | `CHAR(36)` | `UUID` | `TEXT` | `UNIQUEIDENTIFIER` |
+| UuidColumnDefaultValue | `(UUID())` | `gen_random_uuid()` | *(randomblob expression)* | `(NEWID())` |
+| JsonColumnType | `JSON` | `JSONB` | `TEXT` | `NVARCHAR(MAX)` |
+| BoolColumnType | `TINYINT(1)` | `BOOLEAN` | `INTEGER` | `BIT` |
+| DecimalColumnType | `DECIMAL(19,4)` | `NUMERIC(19,4)` | `TEXT` | `DECIMAL(19,4)` |
+| DecimalColumnDefaultValue | `0` | `0` | `'0'` | `0` |
+| BigIntColumnType | `BIGINT` | `BIGINT` | `INTEGER` | `BIGINT` |
 
 ### Standalone DbTypes Classes
 The following classes implement `IDbTypes` and are available in the `Corely.DataAccess` namespace:
 - `MySqlDbTypes`
 - `PostgreSqlDbTypes`
 - `SqliteDbTypes`
+- `MsSqlDbTypes`
 - `InMemoryDbTypes`
 
 ## Provided Base Classes
@@ -61,6 +62,7 @@ The following classes implement `IDbTypes` and are available in the `Corely.Data
 | EFMySqlConfigurationBase | MySQL / MariaDB | UTC defaults via UTC_TIMESTAMP |
 | EFPostgresConfigurationBase | PostgreSQL | UTC defaults via CURRENT_TIMESTAMP |
 | EFSqliteConfigurationBase | SQLite | TEXT + CURRENT_TIMESTAMP defaults; see below for in-memory sharing |
+| EFMsSqlConfigurationBase | MS SQL Server | UTC defaults via SYSUTCDATETIME() |
 
 ### Example
 ```csharp

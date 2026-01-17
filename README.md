@@ -10,7 +10,7 @@ Corely.DataAccess provides a set of utilities to help you work with data access 
 - **IRepository**: A generic repository interface for CRUD operations.
 - **IReadRepository**: A read-only repository interface for querying data.
 - **IUnitOfWork**: An interface for managing transactions and coordinating changes across multiple repositories.
-- Base Entity Framework configurations for SQLite, MySQL, and PostgreSQL.
+- Base Entity Framework configurations for SQLite, MySQL, PostgreSQL, and MS SQL Server.
 
 
 ## Documentation
