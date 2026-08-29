@@ -1,8 +1,10 @@
-﻿using Corely.Common.Extensions;
+﻿using System.Linq.Expressions;
+using Corely.Common.Extensions;
 using Corely.DataAccess.EntityFramework.UnitOfWork;
 using Corely.DataAccess.Interfaces.Entities;
 using Corely.DataAccess.Interfaces.Repos;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Query;
 using Microsoft.Extensions.Logging;
 
 namespace Corely.DataAccess.EntityFramework.Repos;
@@ -89,6 +91,22 @@ internal sealed class EFRepo<TContext, TEntity> : EFReadonlyRepo<TContext, TEnti
         }
 
         await DbContext.SaveChangesAsync(cancellationToken);
+    }
+
+    public Task<int> ExecuteUpdateAsync(
+        Expression<Func<TEntity, bool>> query,
+        Expression<Func<SetPropertyCalls<TEntity>, SetPropertyCalls<TEntity>>> setProperties,
+        CancellationToken cancellationToken = default
+    )
+    {
+        ArgumentNullException.ThrowIfNull(query);
+        ArgumentNullException.ThrowIfNull(setProperties);
+
+        if (_uow.IsActive)
+            _uow.Register(DbContext);
+
+        // Executes immediately as a single UPDATE, enlisting in the UoW transaction when one is open.
+        return DbSet.Where(query).ExecuteUpdateAsync(setProperties, cancellationToken);
     }
 
     public async Task DeleteAsync(TEntity entity, CancellationToken cancellationToken = default)

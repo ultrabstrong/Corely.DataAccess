@@ -2,6 +2,7 @@
 using Corely.DataAccess.Interfaces.Entities;
 using Corely.DataAccess.Interfaces.Repos;
 using Corely.DataAccess.Mock.Linq;
+using Microsoft.EntityFrameworkCore.Query;
 
 namespace Corely.DataAccess.Mock.Repos;
 
@@ -180,6 +181,28 @@ public class MockRepo<TEntity> : IRepo<TEntity>
             Entities[index] = entity;
         }
         return Task.CompletedTask;
+    }
+
+    public virtual Task<int> ExecuteUpdateAsync(
+        Expression<Func<TEntity, bool>> query,
+        Expression<Func<SetPropertyCalls<TEntity>, SetPropertyCalls<TEntity>>> setProperties,
+        CancellationToken cancellationToken = default
+    )
+    {
+        ArgumentNullException.ThrowIfNull(query);
+        ArgumentNullException.ThrowIfNull(setProperties);
+
+        var predicate = query.Compile();
+        var setters = SetPropertyInterpreter<TEntity>.Parse(setProperties);
+
+        // Mirrors EF: bypasses change tracking, so IHasModifiedUtc is not applied automatically.
+        var matches = Entities.Where(predicate).ToList();
+        foreach (var entity in matches)
+        {
+            SetPropertyInterpreter<TEntity>.Apply(entity, setters);
+        }
+
+        return Task.FromResult(matches.Count);
     }
 
     public virtual Task DeleteAsync(TEntity entity, CancellationToken cancellationToken = default)

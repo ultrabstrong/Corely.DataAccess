@@ -1,4 +1,7 @@
-﻿namespace Corely.DataAccess.Interfaces.Repos;
+using System.Linq.Expressions;
+using Microsoft.EntityFrameworkCore.Query;
+
+namespace Corely.DataAccess.Interfaces.Repos;
 
 public interface IRepo<TEntity> : IReadonlyRepo<TEntity>
     where TEntity : class
@@ -8,6 +11,20 @@ public interface IRepo<TEntity> : IReadonlyRepo<TEntity>
     Task CreateAsync(IEnumerable<TEntity> entities, CancellationToken cancellationToken = default);
 
     Task UpdateAsync(TEntity entity, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Applies a set-based update to every entity matching <paramref name="query"/> in a single
+    /// database round-trip, returning the number of rows affected.
+    /// </summary>
+    /// <remarks>
+    /// This bypasses the change tracker, so <see cref="Interfaces.Entities.IHasModifiedUtc"/> is
+    /// NOT applied automatically - set it explicitly in <paramref name="setProperties"/> when needed.
+    /// </remarks>
+    Task<int> ExecuteUpdateAsync(
+        Expression<Func<TEntity, bool>> query,
+        Expression<Func<SetPropertyCalls<TEntity>, SetPropertyCalls<TEntity>>> setProperties,
+        CancellationToken cancellationToken = default
+    );
 
     Task DeleteAsync(TEntity entity, CancellationToken cancellationToken = default);
 }

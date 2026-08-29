@@ -2,6 +2,7 @@ using System.Linq.Expressions;
 using Corely.Common.Extensions;
 using Corely.DataAccess.EntityFramework.UnitOfWork;
 using Corely.DataAccess.Interfaces.Repos;
+using Microsoft.EntityFrameworkCore.Query;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace Corely.DataAccess.EntityFramework.Repos;
@@ -39,6 +40,12 @@ internal sealed class EFRepoAdapter<TEntity> : IRepo<TEntity>
 
     public Task UpdateAsync(TEntity entity, CancellationToken cancellationToken = default) =>
         Repo.UpdateAsync(entity, cancellationToken);
+
+    public Task<int> ExecuteUpdateAsync(
+        Expression<Func<TEntity, bool>> query,
+        Expression<Func<SetPropertyCalls<TEntity>, SetPropertyCalls<TEntity>>> setProperties,
+        CancellationToken cancellationToken = default
+    ) => Repo.ExecuteUpdateAsync(query, setProperties, cancellationToken);
 
     public Task DeleteAsync(TEntity entity, CancellationToken cancellationToken = default) =>
         Repo.DeleteAsync(entity, cancellationToken);
