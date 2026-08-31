@@ -1,0 +1,73 @@
+name: Release
+
+# Publishes to NuGet via Trusted Publishing (OIDC). There is no API key stored anywhere: the
+# workflow proves its identity to nuget.org, which checks it against the trusted publisher policy
+# bound to this repository and hands back a key valid for one hour.
+#
+# The policy is bound to this file name (release.yml) - renaming it breaks publishing until the
+# policy on nuget.org is updated to match.
+#
+#   git tag v2.3.0 && git push origin v2.3.0
+#
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+      id-token: write # required for nuget.org to issue the short-lived key
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Restore
+        run: dotnet restore Corely.DataAccess.sln
+
+      - name: Build
+        run: dotnet build Corely.DataAccess.sln --configuration Release --no-restore
+
+      - name: Test
+        run: dotnet test Corely.DataAccess.sln --configuration Release --no-build
+
+      # Version comes from the csproj, matching how these packages have always been versioned.
+      # The tag is the trigger, not the source of truth.
+      - name: Pack
+        run: >
+          dotnet pack Corely.DataAccess/Corely.DataAccess.csproj
+          --configuration Release
+          --no-build
+          -p:IncludeSymbols=true
+          -p:SymbolPackageFormat=snupkg
+          --output ./artifacts
+
+      - name: List packages
+        run: ls -l ./artifacts
+
+      # Requested immediately before the push: the key expires after one hour.
+      - name: NuGet login (OIDC to short-lived key)
+        uses: NuGet/login@v1
+        id: login
+        with:
+          user: ultrabstrong
+
+      - name: Push
+        run: >
+          dotnet nuget push "./artifacts/*.nupkg"
+          --api-key ${{ steps.login.outputs.NUGET_API_KEY }}
+          --source https://api.nuget.org/v3/index.json
+          --skip-duplicate
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: packages
+          path: ./artifacts/*
