@@ -1,5 +1,4 @@
 using System.Linq.Expressions;
-using Microsoft.EntityFrameworkCore.Query;
 
 namespace Corely.DataAccess.Interfaces.Repos;
 
@@ -22,7 +21,7 @@ public interface IRepo<TEntity> : IReadonlyRepo<TEntity>
     /// </remarks>
     Task<int> ExecuteUpdateAsync(
         Expression<Func<TEntity, bool>> query,
-        Expression<Func<SetPropertyCalls<TEntity>, SetPropertyCalls<TEntity>>> setProperties,
+        Action<IUpdateSetters<TEntity>> setProperties,
         CancellationToken cancellationToken = default
     );
 

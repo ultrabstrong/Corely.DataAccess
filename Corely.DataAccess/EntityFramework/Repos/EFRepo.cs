@@ -95,7 +95,7 @@ internal sealed class EFRepo<TContext, TEntity> : EFReadonlyRepo<TContext, TEnti
 
     public Task<int> ExecuteUpdateAsync(
         Expression<Func<TEntity, bool>> query,
-        Expression<Func<SetPropertyCalls<TEntity>, SetPropertyCalls<TEntity>>> setProperties,
+        Action<IUpdateSetters<TEntity>> setProperties,
         CancellationToken cancellationToken = default
     )
     {
@@ -106,7 +106,12 @@ internal sealed class EFRepo<TContext, TEntity> : EFReadonlyRepo<TContext, TEnti
             _uow.Register(DbContext);
 
         // Executes immediately as a single UPDATE, enlisting in the UoW transaction when one is open.
-        return DbSet.Where(query).ExecuteUpdateAsync(setProperties, cancellationToken);
+        return DbSet
+            .Where(query)
+            .ExecuteUpdateAsync(
+                builder => setProperties(new EFUpdateSetters<TEntity>(builder)),
+                cancellationToken
+            );
     }
 
     public async Task DeleteAsync(TEntity entity, CancellationToken cancellationToken = default)

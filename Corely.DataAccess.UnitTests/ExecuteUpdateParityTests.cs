@@ -11,7 +11,7 @@ namespace Corely.DataAccess.UnitTests;
 
 /// <summary>
 /// MockRepo re-implements EF's SetProperty semantics by hand, so every behaviour is asserted
-/// against both implementations. If the interpreter drifts from EF, these fail.
+/// against both implementations. If the mock drifts from EF, these fail.
 /// </summary>
 public sealed class ExecuteUpdateParityTests : IDisposable
 {

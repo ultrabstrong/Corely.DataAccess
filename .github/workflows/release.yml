@@ -28,7 +28,7 @@ jobs:
 
       - uses: actions/setup-dotnet@v6
         with:
-          dotnet-version: 8.0.x
+          dotnet-version: 10.0.x
 
       - name: Restore
         run: dotnet restore Corely.DataAccess.sln
@@ -37,7 +37,7 @@ jobs:
         run: dotnet build Corely.DataAccess.sln --configuration Release --no-restore
 
       - name: Test
-        run: dotnet test Corely.DataAccess.sln --configuration Release --no-build
+        run: dotnet test --solution Corely.DataAccess.sln --configuration Release --no-build
 
       # Version comes from the csproj, matching how these packages have always been versioned.
       # The tag is the trigger, not the source of truth.

@@ -43,7 +43,7 @@ internal sealed class EFRepoAdapter<TEntity> : IRepo<TEntity>
 
     public Task<int> ExecuteUpdateAsync(
         Expression<Func<TEntity, bool>> query,
-        Expression<Func<SetPropertyCalls<TEntity>, SetPropertyCalls<TEntity>>> setProperties,
+        Action<IUpdateSetters<TEntity>> setProperties,
         CancellationToken cancellationToken = default
     ) => Repo.ExecuteUpdateAsync(query, setProperties, cancellationToken);
 

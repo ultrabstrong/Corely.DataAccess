@@ -185,7 +185,7 @@ public class MockRepo<TEntity> : IRepo<TEntity>
 
     public virtual Task<int> ExecuteUpdateAsync(
         Expression<Func<TEntity, bool>> query,
-        Expression<Func<SetPropertyCalls<TEntity>, SetPropertyCalls<TEntity>>> setProperties,
+        Action<IUpdateSetters<TEntity>> setProperties,
         CancellationToken cancellationToken = default
     )
     {
@@ -193,13 +193,12 @@ public class MockRepo<TEntity> : IRepo<TEntity>
         ArgumentNullException.ThrowIfNull(setProperties);
 
         var predicate = query.Compile();
-        var setters = SetPropertyInterpreter<TEntity>.Parse(setProperties);
 
         // Mirrors EF: bypasses change tracking, so IHasModifiedUtc is not applied automatically.
         var matches = Entities.Where(predicate).ToList();
         foreach (var entity in matches)
         {
-            SetPropertyInterpreter<TEntity>.Apply(entity, setters);
+            setProperties(new MockUpdateSetters<TEntity>(entity!));
         }
 
         return Task.FromResult(matches.Count);

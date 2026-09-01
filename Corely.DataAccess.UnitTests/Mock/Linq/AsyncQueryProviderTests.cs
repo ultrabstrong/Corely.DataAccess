@@ -14,8 +14,11 @@ public class AsyncQueryProviderTests
         var source = GetBaseQueryable(1, 2, 3);
         var asyncQueryable = new AsyncEnumerable<int>(source.Expression);
 
-        // Act: simulate EF ToListAsync by using EF extension directly on asyncQueryable
-        var list = await (asyncQueryable).ToListAsync();
+        // Act: simulate EF ToListAsync by using EF extension directly on asyncQueryable.
+        // .NET 10 added System.Linq.AsyncEnumerable.ToListAsync, which is an equally good match
+        // for a type that is both IQueryable and IAsyncEnumerable, so the EF extension is called
+        // explicitly rather than through extension-method resolution.
+        var list = await EntityFrameworkQueryableExtensions.ToListAsync(asyncQueryable);
 
         // Assert
         Assert.Equal([1, 2, 3], list);

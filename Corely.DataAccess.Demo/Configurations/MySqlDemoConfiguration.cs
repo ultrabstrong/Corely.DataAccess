@@ -8,7 +8,8 @@ public class MySqlDemoConfiguration(string connectionString)
 {
     public override void Configure(DbContextOptionsBuilder optionsBuilder)
     {
-        var serverVersion = new MySqlServerVersion(new Version(8, 0, 36));
-        optionsBuilder.UseMySql(connectionString, serverVersion);
+        // Oracle's provider resolves server capabilities from the connection; unlike Pomelo it has
+        // no ServerVersion to declare up front.
+        optionsBuilder.UseMySQL(connectionString);
     }
 }

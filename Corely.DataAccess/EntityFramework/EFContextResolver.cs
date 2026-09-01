@@ -8,7 +8,11 @@ namespace Corely.DataAccess.EntityFramework;
 
 internal sealed class EFContextResolver : IEFContextResolver
 {
-    private static readonly ConcurrentDictionary<Type, Type> _cache = new();
+    // Per-instance, not static: resolution depends on which DbContexts _serviceProvider has
+    // registered, so a process hosting more than one provider would otherwise serve one provider's
+    // answers to another. The resolver is registered as a singleton, so this still caches once per
+    // container.
+    private readonly ConcurrentDictionary<Type, Type> _cache = new();
     private readonly IServiceProvider _serviceProvider;
     private readonly Lazy<Type[]> _contextTypes;
 
