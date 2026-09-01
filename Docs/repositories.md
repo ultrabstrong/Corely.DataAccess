@@ -25,6 +25,9 @@ public interface IRepo<TEntity> : IReadonlyRepo<TEntity>
     Task CreateAsync(IEnumerable<TEntity> entities, CancellationToken ct = default);
     Task UpdateAsync(TEntity entity, CancellationToken ct = default);
     Task DeleteAsync(TEntity entity, CancellationToken ct = default);
+
+    // Set-based update: one statement for every matching row
+    Task<int> ExecuteUpdateAsync(Expression<Func<TEntity,bool>> query, Action<IUpdateSetters<TEntity>> setProperties, CancellationToken ct = default);
 }
 ```
 
@@ -97,6 +100,25 @@ These run server-side when using EF-backed repos; mocks execute over in-memory c
 - UpdateAsync: updates tracked entity by key; sets ModifiedUtc when IHasModifiedUtc.
 - DeleteAsync: removes by reference/key.
 
+## Set-Based Updates
+ExecuteUpdateAsync applies the same change to every matching row in a single database round-trip, returning the number of rows affected:
+```csharp
+var revoked = await repo.ExecuteUpdateAsync(
+    t => t.UserId == userId && t.RevokedUtc == null,
+    s => s.SetProperty(t => t.RevokedUtc, utcNow));
+```
+Chain SetProperty for multiple columns, and pass an expression instead of a value to compute it per row server-side:
+```csharp
+await repo.ExecuteUpdateAsync(
+    e => e.IsActive,
+    s => s
+        .SetProperty(e => e.Attempts, e => e.Attempts + 1)
+        .SetProperty(e => e.ModifiedUtc, utcNow));
+```
+This bypasses the change tracker, so IHasModifiedUtc is **not** applied automatically - set it explicitly when needed. Rows are updated in place, so no entity is loaded or returned.
+
+IUpdateSetters is declared by this library rather than surfacing EF's own setter type. EF has revised that type once already, and passing it through IRepo would make every such revision a breaking change for consumers.
+
 ## Unit of Work Integration
 See [Unit of Work](unit-of-work.md). In short:
 - BeginAsync activates the scope; repositories defer SaveChanges while active.
@@ -110,4 +132,4 @@ Stick with the provided repos unless you need:
 - Raw SQL / stored procedures behind a safe API
 - Cross-cutting behavior (soft delete, multi-tenancy, policies)
 
-For tests that shouldn’t depend on EF Core semantics, use mock providers.
+For tests that shouldnâ€™t depend on EF Core semantics, use mock providers.
