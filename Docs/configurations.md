@@ -59,7 +59,7 @@ The following classes implement `IDbTypes` and are available in the `Corely.Data
 | Base | Use Case | Notes |
 |------|----------|-------|
 | EFInMemoryConfigurationBase | Tests / demos | Provider ignores column types; still supplies placeholders |
-| EFMySqlConfigurationBase | MySQL / MariaDB | UTC defaults via UTC_TIMESTAMP |
+| EFMySqlConfigurationBase | MySQL | UTC defaults via UTC_TIMESTAMP |
 | EFPostgresConfigurationBase | PostgreSQL | UTC defaults via CURRENT_TIMESTAMP |
 | EFSqliteConfigurationBase | SQLite | TEXT + CURRENT_TIMESTAMP defaults; see below for in-memory sharing |
 | EFMsSqlConfigurationBase | MS SQL Server | UTC defaults via SYSUTCDATETIME() |
@@ -70,7 +70,7 @@ internal sealed class MySqlDemoConfiguration : EFMySqlConfigurationBase
 {
     public MySqlDemoConfiguration(string cs) : base(cs) {}
     public override void Configure(DbContextOptionsBuilder b)
-        => b.UseMySql(connectionString, new MySqlServerVersion(new Version(8,0,36)));
+        => b.UseMySQL(connectionString);
 }
 ```
 
@@ -85,7 +85,7 @@ internal sealed class CustomMySqlConfiguration : EFMySqlConfigurationBase
     public CustomMySqlConfiguration(string cs) : base(cs) {}
 
     public override void Configure(DbContextOptionsBuilder b)
-   => b.UseMySql(connectionString, new MySqlServerVersion(new Version(8,0,36)));
+   => b.UseMySQL(connectionString);
 
     public override IDbTypes GetDbTypes() => _customTypes;
 

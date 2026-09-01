@@ -20,8 +20,8 @@ dotnet add package Microsoft.EntityFrameworkCore.Sqlite
 # In-Memory (tests / demos)
 dotnet add package Microsoft.EntityFrameworkCore.InMemory
 
-# MySQL (example uses Pomelo)
-dotnet add package Pomelo.EntityFrameworkCore.MySql
+# MySQL (Oracle's official provider)
+dotnet add package MySql.EntityFrameworkCore
 
 # PostgreSQL
 dotnet add package Npgsql.EntityFrameworkCore.PostgreSQL
