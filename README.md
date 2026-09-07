@@ -20,7 +20,7 @@ Details about using this library can be found in the [documentation](https://git
 [Corely.DataAccess](https://github.com/ultrabstrong/Corely.DataAccess)
 
 ## Contributing
-We welcome contributions! Please read our [contributing guidelines](CONTRIBUTING.md) to get started.
+We welcome contributions! Please read our [contributing guidelines](https://github.com/ultrabstrong/Corely.DataAccess/blob/master/CONTRIBUTING.md) to get started.
 
 ## License
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
