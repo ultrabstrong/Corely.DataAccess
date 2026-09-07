@@ -1,4 +1,4 @@
-﻿using AutoFixture;
+using AutoFixture;
 using Corely.DataAccess.EntityFramework.Repos;
 using Corely.DataAccess.EntityFramework.UnitOfWork;
 using Corely.DataAccess.Extensions;
@@ -38,7 +38,8 @@ public class EFRepoTests : RepoTestsBase
         _efRepo = new EFRepo<DbContextFixture, EntityFixture>(
             Moq.Mock.Of<ILogger<EFRepo<DbContextFixture, EntityFixture>>>(),
             _dbContext,
-            _sp.GetRequiredService<EFUoWProvider>()
+            _sp.GetRequiredService<EFUoWProvider>(),
+            TimeProvider.System
         );
     }
 

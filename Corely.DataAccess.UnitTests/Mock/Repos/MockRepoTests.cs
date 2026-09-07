@@ -1,4 +1,4 @@
-﻿using AutoFixture;
+using AutoFixture;
 using Corely.DataAccess.Interfaces.Entities;
 using Corely.DataAccess.Interfaces.Repos;
 using Corely.DataAccess.Mock.Repos;
@@ -174,5 +174,52 @@ public class MockRepoTests : RepoTestsBase
 
         Assert.NotNull(fetched);
         Assert.Equal(newCreated, fetched!.CreatedUtc);
+    }
+
+    [Fact]
+    public async Task CreateAsync_StampsCreatedUtc_FromTheSuppliedTimeProvider()
+    {
+        var clock = new FixedTimeProvider(new DateTimeOffset(2030, 1, 2, 3, 4, 5, TimeSpan.Zero));
+        var repo = new MockRepo<TimestampedEntity>(clock);
+        var entity = new TimestampedEntity();
+
+        await repo.CreateAsync(entity);
+
+        Assert.Equal(clock.GetUtcNow().UtcDateTime, entity.CreatedUtc);
+    }
+
+    [Fact]
+    public async Task UpdateAsync_StampsModifiedUtc_FromTheSuppliedTimeProvider()
+    {
+        var clock = new FixedTimeProvider(new DateTimeOffset(2030, 1, 2, 3, 4, 5, TimeSpan.Zero));
+        var repo = new MockRepo<TimestampedEntity>(clock);
+        var entity = new TimestampedEntity();
+        await repo.CreateAsync(entity);
+
+        await repo.UpdateAsync(entity);
+
+        Assert.Equal(clock.GetUtcNow().UtcDateTime, entity.ModifiedUtc);
+    }
+
+    [Fact]
+    public async Task CreateAsync_FallsBackToSystemTime_WhenNoProviderIsSupplied()
+    {
+        var repo = new MockRepo<TimestampedEntity>();
+        var entity = new TimestampedEntity();
+
+        await repo.CreateAsync(entity);
+
+        Assert.NotEqual(default, entity.CreatedUtc);
+    }
+
+    private sealed class TimestampedEntity : IHasCreatedUtc, IHasModifiedUtc
+    {
+        public DateTime CreatedUtc { get; set; }
+        public DateTime? ModifiedUtc { get; set; }
+    }
+
+    private sealed class FixedTimeProvider(DateTimeOffset utcNow) : TimeProvider
+    {
+        public override DateTimeOffset GetUtcNow() => utcNow;
     }
 }

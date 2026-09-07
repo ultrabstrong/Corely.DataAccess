@@ -1,4 +1,4 @@
-﻿using System.Data.Common;
+using System.Data.Common;
 using Corely.DataAccess.EntityFramework.Repos;
 using Corely.DataAccess.EntityFramework.UnitOfWork;
 using Corely.DataAccess.UnitTests.Fixtures;
@@ -168,8 +168,18 @@ public partial class EFUoWProviderTests
 
             var (sp, uow) = BuildUoW();
 
-            var repo1 = new EFRepo<DbContextFixture, EntityFixture>(logger1, ctx1, uow);
-            var repo2 = new EFRepo<AnotherDbContextFixture, EntityFixture>(logger2, ctx2, uow);
+            var repo1 = new EFRepo<DbContextFixture, EntityFixture>(
+                logger1,
+                ctx1,
+                uow,
+                TimeProvider.System
+            );
+            var repo2 = new EFRepo<AnotherDbContextFixture, EntityFixture>(
+                logger2,
+                ctx2,
+                uow,
+                TimeProvider.System
+            );
 
             uow.Register(ctx1);
             uow.Register(ctx2);
@@ -303,12 +313,14 @@ public partial class EFUoWProviderTests
             var repo1 = new EFRepo<DbContextFixture, EntityFixture>(
                 Moq.Mock.Of<ILogger<EFRepo<DbContextFixture, EntityFixture>>>(),
                 ctx1,
-                uow
+                uow,
+                TimeProvider.System
             );
             var repo2 = new EFRepo<AnotherDbContextFixture, EntityFixture>(
                 Moq.Mock.Of<ILogger<EFRepo<AnotherDbContextFixture, EntityFixture>>>(),
                 ctx2,
-                uow
+                uow,
+                TimeProvider.System
             );
 
             uow.Register(ctx1);
@@ -533,12 +545,14 @@ public partial class EFUoWProviderTests
         var repo1 = new EFRepo<DbContextFixture, EntityFixture>(
             Moq.Mock.Of<ILogger<EFRepo<DbContextFixture, EntityFixture>>>(),
             ctx1,
-            uow
+            uow,
+            TimeProvider.System
         );
         var repo2 = new EFRepo<AnotherDbContextFixture, EntityFixture>(
             Moq.Mock.Of<ILogger<EFRepo<AnotherDbContextFixture, EntityFixture>>>(),
             ctx2,
-            uow
+            uow,
+            TimeProvider.System
         );
 
         uow.Register(ctx1);

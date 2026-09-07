@@ -1,4 +1,4 @@
-﻿using System.Linq.Expressions;
+using System.Linq.Expressions;
 using Corely.Common.Extensions;
 using Corely.DataAccess.EntityFramework.UnitOfWork;
 using Corely.DataAccess.Interfaces.Entities;
@@ -14,11 +14,18 @@ internal sealed class EFRepo<TContext, TEntity> : EFReadonlyRepo<TContext, TEnti
     where TEntity : class
 {
     private readonly EFUoWProvider _uow;
+    private readonly TimeProvider _timeProvider;
 
-    public EFRepo(ILogger<EFRepo<TContext, TEntity>> logger, TContext dbContext, EFUoWProvider uow)
+    public EFRepo(
+        ILogger<EFRepo<TContext, TEntity>> logger,
+        TContext dbContext,
+        EFUoWProvider uow,
+        TimeProvider timeProvider
+    )
         : base(logger, dbContext)
     {
         _uow = uow.ThrowIfNull(nameof(uow));
+        _timeProvider = timeProvider.ThrowIfNull(nameof(timeProvider));
     }
 
     public async Task<TEntity> CreateAsync(
@@ -57,7 +64,7 @@ internal sealed class EFRepo<TContext, TEntity> : EFReadonlyRepo<TContext, TEnti
             _uow.Register(DbContext);
 
         if (typeof(IHasModifiedUtc).IsAssignableFrom(typeof(TEntity)))
-            ((IHasModifiedUtc)entity).ModifiedUtc = DateTime.UtcNow;
+            ((IHasModifiedUtc)entity).ModifiedUtc = _timeProvider.GetUtcNow().UtcDateTime;
 
         var entityType = DbContext.Model.FindEntityType(typeof(TEntity));
         var key = entityType?.FindPrimaryKey();

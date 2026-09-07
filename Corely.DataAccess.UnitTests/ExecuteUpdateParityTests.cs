@@ -37,7 +37,8 @@ public sealed class ExecuteUpdateParityTests : IDisposable
         _efRepo = new EFRepo<DbContextFixture, EntityFixture>(
             Moq.Mock.Of<ILogger<EFRepo<DbContextFixture, EntityFixture>>>(),
             _dbContext,
-            new EFUoWProvider()
+            new EFUoWProvider(),
+            TimeProvider.System
         );
 
         Seed();

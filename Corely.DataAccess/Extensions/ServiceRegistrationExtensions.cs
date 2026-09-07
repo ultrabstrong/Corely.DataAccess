@@ -1,4 +1,4 @@
-﻿using Corely.DataAccess.EntityFramework;
+using Corely.DataAccess.EntityFramework;
 using Corely.DataAccess.EntityFramework.Repos;
 using Corely.DataAccess.EntityFramework.UnitOfWork;
 using Corely.DataAccess.Interfaces.Repos;
@@ -19,6 +19,9 @@ public static class ServiceRegistrationExtensions
         this IServiceCollection services
     )
     {
+        // The repos stamp CreatedUtc/ModifiedUtc through TimeProvider so a host driving a fake
+        // clock controls them. TryAdd leaves a host's own registration alone.
+        services.TryAddSingleton(TimeProvider.System);
         services.TryAddSingleton<IEFContextResolver>(sp => new EFContextResolver(sp));
         services.TryAddScoped(typeof(EFReadonlyRepo<,>), typeof(EFReadonlyRepo<,>));
         services.TryAddScoped(typeof(EFRepo<,>), typeof(EFRepo<,>));
@@ -36,6 +39,9 @@ public static class ServiceRegistrationExtensions
 
     public static IServiceCollection RegisterMockReposAndUoW(this IServiceCollection services)
     {
+        // The repos stamp CreatedUtc/ModifiedUtc through TimeProvider so a host driving a fake
+        // clock controls them. TryAdd leaves a host's own registration alone.
+        services.TryAddSingleton(TimeProvider.System);
         services.TryAddScoped(typeof(IRepo<>), typeof(MockRepo<>));
         services.TryAddScoped(typeof(IReadonlyRepo<>), typeof(MockReadonlyRepo<>));
         services.TryAddScoped<IUnitOfWorkProvider, MockUoWProvider>();

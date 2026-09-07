@@ -1,4 +1,4 @@
-﻿using System.Linq.Expressions;
+using System.Linq.Expressions;
 using Corely.DataAccess.Interfaces.Entities;
 using Corely.DataAccess.Interfaces.Repos;
 using Corely.DataAccess.Mock.Linq;
@@ -11,8 +11,14 @@ public class MockRepo<TEntity> : IRepo<TEntity>
 {
     public readonly List<TEntity> Entities = [];
 
-    public MockRepo()
-        : base() { }
+    private readonly TimeProvider _timeProvider;
+
+    // Optional so `new MockRepo<T>()` still works in tests that do not care about the clock. DI
+    // supplies the registered provider when there is one.
+    public MockRepo(TimeProvider? timeProvider = null)
+    {
+        _timeProvider = timeProvider ?? TimeProvider.System;
+    }
 
     private static bool TryGetId(object entity, out object? id)
     {
@@ -43,11 +49,11 @@ public class MockRepo<TEntity> : IRepo<TEntity>
     private static bool IsCreatedUtcUnset(object entity) =>
         entity is IHasCreatedUtc hc && hc.CreatedUtc == default;
 
-    private static void EnsureCreatedUtc(object entity)
+    private void EnsureCreatedUtc(object entity)
     {
         if (entity is IHasCreatedUtc hc && hc.CreatedUtc == default)
         {
-            hc.CreatedUtc = DateTime.UtcNow;
+            hc.CreatedUtc = _timeProvider.GetUtcNow().UtcDateTime;
         }
     }
 
@@ -147,7 +153,7 @@ public class MockRepo<TEntity> : IRepo<TEntity>
     {
         if (typeof(IHasModifiedUtc).IsAssignableFrom(typeof(TEntity)))
         {
-            ((IHasModifiedUtc)entity).ModifiedUtc = DateTime.UtcNow;
+            ((IHasModifiedUtc)entity).ModifiedUtc = _timeProvider.GetUtcNow().UtcDateTime;
         }
 
         var incomingId = GetIdOrNull(entity);

@@ -10,7 +10,7 @@
     <RepositoryUrl>https://github.com/ultrabstrong/Corely.DataAccess</RepositoryUrl>
     <PackageProjectUrl>https://github.com/ultrabstrong/Corely.DataAccess</PackageProjectUrl>
     <PackageLicenseFile>LICENSE</PackageLicenseFile>
-    <Version>3.0.1</Version>
+    <Version>3.1.0</Version>
     <PackageReadmeFile>README.md</PackageReadmeFile>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
