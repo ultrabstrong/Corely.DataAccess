@@ -1,13 +1,9 @@
 namespace Corely.DataAccess;
 
-/// <summary>
-/// In-memory database types. Types don't matter for in-memory databases; these are placeholders.
-/// </summary>
 public class InMemoryDbTypes : IDbTypes
 {
     public string ConfiguredForDatabaseType => DatabaseType.InMemory;
 
-    // types don't appear to matter for in-memory database
     public virtual string UTCDateColumnType => nameof(UTCDateColumnType);
     public virtual string UTCDateColumnDefaultValue => nameof(UTCDateColumnDefaultValue);
     public virtual string UuidColumnType => nameof(UuidColumnType);

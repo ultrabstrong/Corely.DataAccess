@@ -145,7 +145,6 @@ public partial class EFUoWProviderTests
     [Fact]
     public async Task CommitAsync_SavesChanges_ForEachRegisteredContext_AndDeactivates()
     {
-        // Use file-based SQLite to validate pre-commit invisibility across connections
         var file1 = Path.GetTempFileName();
         var file2 = Path.GetTempFileName();
         try
@@ -159,7 +158,6 @@ public partial class EFUoWProviderTests
             var ctx1 = new DbContextFixture(options1);
             var ctx2 = new AnotherDbContextFixture(options2);
 
-            // Create schema
             ctx1.Database.EnsureCreated();
             ctx2.Database.EnsureCreated();
 
@@ -290,7 +288,6 @@ public partial class EFUoWProviderTests
     [Fact]
     public async Task RollbackAsync_ClearsTrackedChanges_ForEachContext_AndDeactivates()
     {
-        // Use file-based SQLite so that SaveChanges within an active UoW happen inside a transaction
         var file1 = Path.GetTempFileName();
         var file2 = Path.GetTempFileName();
         try
@@ -304,7 +301,6 @@ public partial class EFUoWProviderTests
             var ctx1 = new DbContextFixture(options1);
             var ctx2 = new AnotherDbContextFixture(options2);
 
-            // Create schema
             ctx1.Database.EnsureCreated();
             ctx2.Database.EnsureCreated();
 
@@ -463,7 +459,6 @@ public partial class EFUoWProviderTests
         await uow.BeginAsync();
         Assert.Equal(1, ci.BeginCount);
 
-        // Duplicate register should not open a second tx
         uow.Register(ctx);
         Assert.Equal(1, ci.BeginCount);
     }
@@ -474,7 +469,6 @@ public partial class EFUoWProviderTests
         var (_, uow) = BuildUoW();
         await uow.BeginAsync();
         uow.Register(null!);
-        // No exception, nothing to assert beyond no-throw
         await uow.RollbackAsync();
     }
 
@@ -496,7 +490,6 @@ public partial class EFUoWProviderTests
         uow.Dispose();
         Assert.False(uow.IsActive);
 
-        // Re-register and begin again should start a new tx
         uow.Register(ctx);
         await uow.BeginAsync();
         Assert.Equal(2, ci.BeginCount);
@@ -530,7 +523,6 @@ public partial class EFUoWProviderTests
     [Fact]
     public async Task Commit_OnlySavesContextsWithChanges()
     {
-        // Two in-memory contexts
         var db1 = Guid.NewGuid().ToString();
         var db2 = Guid.NewGuid().ToString();
         var ctx1 = new DbContextFixture(
@@ -560,7 +552,6 @@ public partial class EFUoWProviderTests
 
         await uow.BeginAsync();
 
-        // Make changes only in ctx1
         await repo1.CreateAsync(new EntityFixture { Id = 777 });
 
         await uow.CommitAsync();

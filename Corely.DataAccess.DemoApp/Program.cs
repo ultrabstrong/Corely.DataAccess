@@ -96,15 +96,12 @@ internal class Program
 
         var readonlyRepo = provider.GetRequiredService<IReadonlyRepo<DemoEntity>>();
 
-        // Aggregate: Sum of Ids (server-side when using EF providers)
         var sumIds = await readonlyRepo.EvaluateAsync((q, ct) => q.SumAsync(e => e.Id, ct));
         Console.WriteLine($"Sum of Ids: {sumIds}");
 
-        // Projection: Names ordered by Id
         var names = await readonlyRepo.QueryAsync(q => q.OrderBy(e => e.Id).Select(e => e.Name));
         Console.WriteLine($"Names ordered: {string.Join(", ", names)}");
 
-        // Paging: Skip/Take over an ordered query
         var pagedNames = await readonlyRepo.QueryAsync(q =>
             q.OrderBy(e => e.Id).Skip(1).Take(2).Select(e => e.Name)
         );
@@ -127,8 +124,6 @@ internal class Program
 
     static async Task UnitOfWorkExample(IServiceProvider provider)
     {
-        // NOTE : UoW doesn't work with in memory databases (sqlite in-memory included)
-        // because they don't support transactions / nested transactions
         Console.WriteLine();
         Console.WriteLine("Unit of Work Example:");
 
@@ -140,9 +135,7 @@ internal class Program
         {
             await uowProvider.BeginAsync();
             await repo.CreateAsync(new DemoEntity { Name = "Lion" });
-            // also works for services using repos
             await service.CreateAsync(new DemoEntity { Name = "Tiger" });
-            // also works across multiple DbContexts
             await repo2.CreateAsync(new DemoEntity2 { Name = "Cyan" });
             throw new Exception();
         }
@@ -165,9 +158,7 @@ internal class Program
         {
             await uowProvider.BeginAsync();
             await repo.CreateAsync(new DemoEntity { Name = "Lion" });
-            // also works for services using repos
             await service.CreateAsync(new DemoEntity { Name = "Tiger" });
-            // also works across multiple DbContexts
             await repo2.CreateAsync(new DemoEntity2 { Name = "Cyan" });
             await uowProvider.CommitAsync();
         }

@@ -33,7 +33,6 @@ public class EFReadonlyRepoAdapterTests
     {
         using var provider = BuildProvider();
 
-        // Seed through EF Core directly
         var ctx = provider.GetRequiredService<DbContextFixture>();
         ctx.Set<EntityFixture>()
             .AddRange(

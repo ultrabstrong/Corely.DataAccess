@@ -5,8 +5,6 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace Corely.DataAccess.Demo;
 
-// This is just to demonstrate multiple DbContexts with different configurations
-// Most of the time you will only need one DbContext and one IEFConfiguration
 public class ContextConfigurationKeys
 {
     public const string CONTEXT_1_CONFIG = nameof(CONTEXT_1_CONFIG);

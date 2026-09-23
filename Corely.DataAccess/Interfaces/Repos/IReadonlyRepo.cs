@@ -29,7 +29,6 @@ public interface IReadonlyRepo<TEntity>
         CancellationToken cancellationToken = default
     );
 
-    // Generic projection + aggregate helpers for maximum flexibility
     Task<TResult> EvaluateAsync<TResult>(
         Func<IQueryable<TEntity>, CancellationToken, Task<TResult>> run,
         CancellationToken cancellationToken = default

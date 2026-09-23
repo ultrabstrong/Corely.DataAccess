@@ -13,8 +13,6 @@ public class MockRepo<TEntity> : IRepo<TEntity>
 
     private readonly TimeProvider _timeProvider;
 
-    // Optional so `new MockRepo<T>()` still works in tests that do not care about the clock. DI
-    // supplies the registered provider when there is one.
     public MockRepo(TimeProvider? timeProvider = null)
     {
         _timeProvider = timeProvider ?? TimeProvider.System;
@@ -159,13 +157,11 @@ public class MockRepo<TEntity> : IRepo<TEntity>
         var incomingId = GetIdOrNull(entity);
         if (incomingId != null)
         {
-            // Find existing by key (supports value types)
             for (int i = 0; i < Entities.Count; i++)
             {
                 var existingId = GetIdOrNull(Entities[i]!);
                 if (existingId != null && Equals(existingId, incomingId))
                 {
-                    // Preserve CreatedUtc if update entity did not set it
                     if (
                         Entities[i] is IHasCreatedUtc existingCreated
                         && entity is IHasCreatedUtc incomingCreated
@@ -174,13 +170,12 @@ public class MockRepo<TEntity> : IRepo<TEntity>
                     {
                         incomingCreated.CreatedUtc = existingCreated.CreatedUtc;
                     }
-                    Entities[i] = entity; // replace reference
+                    Entities[i] = entity;
                     return Task.CompletedTask;
                 }
             }
         }
 
-        // Fallback to reference equality if no key interface implemented or not found
         var index = Entities.FindIndex(e => ReferenceEquals(e, entity));
         if (index > -1)
         {
@@ -200,7 +195,6 @@ public class MockRepo<TEntity> : IRepo<TEntity>
 
         var predicate = query.Compile();
 
-        // Mirrors EF: bypasses change tracking, so IHasModifiedUtc is not applied automatically.
         var matches = Entities.Where(predicate).ToList();
         foreach (var entity in matches)
         {
@@ -222,7 +216,7 @@ public class MockRepo<TEntity> : IRepo<TEntity>
                 return Task.CompletedTask;
             }
         }
-        Entities.Remove(entity); // reference fallback
+        Entities.Remove(entity);
         return Task.CompletedTask;
     }
 
@@ -232,7 +226,6 @@ public class MockRepo<TEntity> : IRepo<TEntity>
     )
     {
         ArgumentNullException.ThrowIfNull(run);
-        // Provide an async-capable IQueryable so EF-style async operators like SumAsync work
         var queryable = Entities.AsAsyncQueryable();
         return run(queryable, cancellationToken);
     }
@@ -243,7 +236,6 @@ public class MockRepo<TEntity> : IRepo<TEntity>
     )
     {
         ArgumentNullException.ThrowIfNull(build);
-        // Provide an async-capable IQueryable so EF-style async operators work
         var queryable = Entities.AsAsyncQueryable();
         var shaped = build(queryable);
         return Task.FromResult(shaped.ToList());

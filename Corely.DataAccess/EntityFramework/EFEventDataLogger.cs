@@ -12,12 +12,6 @@ public static class EFEventDataLogger
         Trace,
     }
 
-    /// <summary>
-    /// Writes EF EventData to the provided logger.
-    /// If writeInfoLogsAs is specified and the event's level is Information, it will log at the provided level (Debug or Trace).
-    /// If onlyLogExecutedCommands is true (default), only CommandExecutedEventData is logged; other EF events are ignored.
-    /// Set onlyLogExecutedCommands to false to log additional EF events handled by this logger.
-    /// </summary>
     public static void Write(
         ILogger logger,
         EventData eventData,
@@ -30,7 +24,6 @@ public static class EFEventDataLogger
 
         var effectiveLevel = GetEffectiveLevel(eventData.LogLevel, writeInfoLogsAs);
 
-        // Avoid allocating dictionaries/scopes unless the log level is enabled
         if (!logger.IsEnabled(effectiveLevel))
             return;
 
@@ -43,7 +36,7 @@ public static class EFEventDataLogger
             case not CommandExecutedEventData when onlyLogExecutedCommands:
                 return;
 
-            case DbContextEventData: // catch-all for other DbContext events
+            case DbContextEventData:
                 LogBasicEvent(logger, eventData, effectiveLevel);
                 return;
 
@@ -116,7 +109,6 @@ public static class EFEventDataLogger
         }
     }
 
-    // New helper for simple coverage of common EF Core diagnostics events
     private static void LogBasicEvent(ILogger logger, EventData e, LogLevel effectiveLevel)
     {
         var contextType = (e as DbContextEventData)?.Context?.GetType().Name ?? "UnknownContext";

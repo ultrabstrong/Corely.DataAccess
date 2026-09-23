@@ -8,11 +8,9 @@ public class AsyncEnumeratorTests
     [Fact]
     public async Task MoveNextAsync_And_Current_Work()
     {
-        // Arrange
         var source = new List<string> { "a", "b" };
         await using var enumerator = new AsyncEnumerator<string>(source.GetEnumerator());
 
-        // Act & Assert
         Assert.True(await enumerator.MoveNextAsync());
         Assert.Equal("a", enumerator.Current);
 
@@ -49,14 +47,11 @@ public class AsyncEnumeratorTests
     [Fact]
     public async Task DisposeAsync_Disposes_Inner_Enumerator()
     {
-        // Arrange
         var inner = new TestEnumerator<int>([1]);
         var asyncEnumerator = new AsyncEnumerator<int>(inner);
 
-        // Act
         await asyncEnumerator.DisposeAsync();
 
-        // Assert
         Assert.True(inner.Disposed);
     }
 }

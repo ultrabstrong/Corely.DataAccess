@@ -127,7 +127,6 @@ public class EntityTypeBuilderExtensionsTests
     [Fact]
     public void ConfigureCreatedUtc_SetsBehaviors_And_RelationalMapping()
     {
-        // Verify save behaviors and value generation using provider-agnostic model
         using (var ctx = new InMemoryTestContext())
         {
             var entityType = ctx.Model.FindEntityType(typeof(PersonEntity));
@@ -139,7 +138,6 @@ public class EntityTypeBuilderExtensionsTests
             Assert.Equal(PropertySaveBehavior.Ignore, createdProp.GetAfterSaveBehavior());
         }
 
-        // Verify relational-specific mapping using a relational provider (SQLite)
         using (var ctx = new SqliteTestContext())
         {
             var entityType = ctx.Model.FindEntityType(typeof(PersonEntity));

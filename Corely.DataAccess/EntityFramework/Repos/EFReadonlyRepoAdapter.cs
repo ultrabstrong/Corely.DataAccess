@@ -10,7 +10,7 @@ internal sealed class EFReadonlyRepoAdapter<TEntity> : IReadonlyRepo<TEntity>
 {
     private readonly IServiceProvider _serviceProvider;
     private readonly IEFContextResolver _entityMapper;
-    private readonly Lazy<IReadonlyRepo<TEntity>> _repo; // EFReadonlyRepo<TContext,TEntity> via contract
+    private readonly Lazy<IReadonlyRepo<TEntity>> _repo;
 
     public EFReadonlyRepoAdapter(IServiceProvider serviceProvider, IEFContextResolver entityMapper)
     {

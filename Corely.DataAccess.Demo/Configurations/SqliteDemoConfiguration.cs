@@ -8,13 +8,11 @@ internal sealed class SqliteDemoConfiguration : EFSqliteConfigurationBase
 {
     private readonly SqliteConnection? _sqliteConnection;
 
-    // Use a named in-memory database with shared cache so multiple connections/contexts can share it
     public SqliteDemoConfiguration(
         string connectionString = "Data Source=docstodata;Mode=Memory;Cache=Shared"
     )
         : base(connectionString)
     {
-        // Keep the connection open for in-memory databases so the DB remains alive for the process lifetime
         var csb = new SqliteConnectionStringBuilder(connectionString);
         var isInMemory =
             string.Equals(csb.DataSource, ":memory:", StringComparison.OrdinalIgnoreCase)

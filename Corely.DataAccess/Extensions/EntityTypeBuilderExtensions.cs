@@ -53,7 +53,6 @@ public static class EntityTypeBuilderExtensions
                 .ValueGeneratedOnAdd()
                 .IsRequired();
 
-            // Ensure EF doesn't try to write CreatedUtc on insert/update; let the DB set it once
             prop.Metadata.SetBeforeSaveBehavior(PropertySaveBehavior.Ignore);
             prop.Metadata.SetAfterSaveBehavior(PropertySaveBehavior.Ignore);
         }

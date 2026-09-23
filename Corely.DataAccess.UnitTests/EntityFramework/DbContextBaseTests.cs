@@ -30,14 +30,11 @@ public class DbContextBaseTests
     [Fact]
     public void OnConfiguring_Uses_IEFConfiguration()
     {
-        // Arrange
         var cfg = new EFConfigurationFixture();
         var ctx = new TestDbContext(cfg);
 
-        // Act
         var providerName = ctx.Database.ProviderName;
 
-        // Assert: Should be configured to EF InMemory by fixture
         Assert.NotNull(providerName);
         Assert.Contains("InMemory", providerName!, StringComparison.OrdinalIgnoreCase);
     }

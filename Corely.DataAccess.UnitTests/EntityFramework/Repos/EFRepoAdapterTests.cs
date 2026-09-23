@@ -15,7 +15,6 @@ public class EFRepoAdapterTests
         var services = new ServiceCollection();
         services.AddLogging();
 
-        // Register DbContexts
         services.AddDbContext<DbContextFixture>(o =>
             o.UseInMemoryDatabase(new Fixture().Create<string>())
         );
@@ -24,7 +23,6 @@ public class EFRepoAdapterTests
                 o.UseInMemoryDatabase(new Fixture().Create<string>())
             );
 
-        // Wire Corely repos + adapters + map
         services.RegisterEntityFrameworkReposAndUoW();
 
         return services.BuildServiceProvider();
@@ -55,7 +53,6 @@ public class EFRepoAdapterTests
         using var provider = BuildProvider();
         var repo = provider.GetRequiredService<IReadonlyRepo<EntityFixture>>();
 
-        // Seed through EF Core directly
         var ctx = provider.GetRequiredService<DbContextFixture>();
         ctx.Set<EntityFixture>()
             .AddRange(new EntityFixture { Id = 1 }, new EntityFixture { Id = 2 });

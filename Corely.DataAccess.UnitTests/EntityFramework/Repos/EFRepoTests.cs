@@ -30,7 +30,6 @@ public class EFRepoTests : RepoTestsBase
         var services = new ServiceCollection();
         services.AddLogging();
         services.AddScoped<EFUoWProvider>();
-        // Register DbContext type with same in-memory database name so EFContextResolver can resolve it safely
         services.AddDbContext<DbContextFixture>(o => o.UseInMemoryDatabase(_dbName));
         services.RegisterEntityFrameworkReposAndUoW();
         _sp = services.BuildServiceProvider();
@@ -88,7 +87,6 @@ public class EFRepoTests : RepoTestsBase
     [Fact]
     public async Task DeferredPersistence_InsideUnitOfWork_DoesNotSaveUntilCommit()
     {
-        // Use file-based SQLite to validate transactional visibility across connections
         var file = Path.GetTempFileName();
         try
         {
@@ -99,7 +97,6 @@ public class EFRepoTests : RepoTestsBase
             services.RegisterEntityFrameworkReposAndUoW();
             await using var provider = services.BuildServiceProvider();
 
-            // Create schema using a separate, direct context
             var schemaOpts = new DbContextOptionsBuilder<DbContextFixture>()
                 .UseSqlite($"Data Source={file}")
                 .Options;
@@ -145,7 +142,6 @@ public class EFRepoTests : RepoTestsBase
     [Fact]
     public async Task Rollback_ClearsPendingChanges_ForDeferredOps()
     {
-        // Use file-based SQLite to validate rollback across connections
         var file = Path.GetTempFileName();
         try
         {
@@ -156,7 +152,6 @@ public class EFRepoTests : RepoTestsBase
             services.RegisterEntityFrameworkReposAndUoW();
             await using var provider = services.BuildServiceProvider();
 
-            // Create schema using a separate, direct context
             var schemaOpts = new DbContextOptionsBuilder<DbContextFixture>()
                 .UseSqlite($"Data Source={file}")
                 .Options;
@@ -185,7 +180,6 @@ public class EFRepoTests : RepoTestsBase
             await uow.RollbackAsync();
 
             Assert.Null(readContext.Set<EntityFixture>().Find(300));
-            // Ensure no lingering tracked entries in a fresh scoped DbContext
             var verifyCtx = sp.GetRequiredService<DbContextFixture>();
             Assert.DoesNotContain(
                 verifyCtx.ChangeTracker.Entries(),

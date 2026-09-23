@@ -36,7 +36,7 @@ public class EFUoWScopeTests
         scope.ContextRegistered += _ => fired++;
 
         scope.Register(ctx);
-        scope.Register(ctx); // duplicate should still fire twice since scope no longer dedupes
+        scope.Register(ctx);
 
         Assert.Equal(2, fired);
     }

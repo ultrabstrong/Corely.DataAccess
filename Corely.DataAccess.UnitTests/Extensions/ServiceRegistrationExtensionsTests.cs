@@ -35,7 +35,7 @@ public class ServiceRegistrationExtensionsTests
         Assert.IsType<EFReadonlyRepoAdapter<EntityFixture>>(readonlyRepo);
         Assert.IsType<EFRepoAdapter<EntityFixture>>(repo);
         Assert.IsType<EFUoWProvider>(uow);
-        Assert.Same(resolver1, resolver2); // singleton
+        Assert.Same(resolver1, resolver2);
     }
 
     [Fact]

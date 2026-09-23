@@ -10,7 +10,6 @@ public class MockReadonlyRepo<TEntity> : IReadonlyRepo<TEntity>
 
     public MockReadonlyRepo(IRepo<TEntity> mockRepo)
     {
-        // Use the same Entities list for all mocks to simulate a single data store
         _mockRepo = (MockRepo<TEntity>)mockRepo;
     }
 

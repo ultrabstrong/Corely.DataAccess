@@ -5,10 +5,10 @@ namespace Corely.DataAccess.UnitTests.Fixtures;
 
 public class DbContextFixture : DbContext
 {
-#pragma warning disable IDE0060 // Remove unused parameter
+#pragma warning disable IDE0060
     public DbContextFixture(IEFConfiguration efConfiguration)
         : base() { }
-#pragma warning restore IDE0060 // Remove unused parameter
+#pragma warning restore IDE0060
 
     public DbContextFixture(DbContextOptions<DbContextFixture> options)
         : base(options) { }

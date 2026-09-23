@@ -38,7 +38,6 @@ internal sealed class EFRepo<TContext, TEntity> : EFReadonlyRepo<TContext, TEnti
 
         var newEntity = await DbSet.AddAsync(entity, cancellationToken);
 
-        // Always flush to obtain generated keys; if a UoW is active, this occurs within its transaction.
         await DbContext.SaveChangesAsync(cancellationToken);
 
         return newEntity.Entity;
@@ -54,7 +53,6 @@ internal sealed class EFRepo<TContext, TEntity> : EFReadonlyRepo<TContext, TEnti
 
         await DbSet.AddRangeAsync(entities, cancellationToken);
 
-        // Always flush to persist and obtain generated keys in batch scenarios as well.
         await DbContext.SaveChangesAsync(cancellationToken);
     }
 
@@ -112,7 +110,6 @@ internal sealed class EFRepo<TContext, TEntity> : EFReadonlyRepo<TContext, TEnti
         if (_uow.IsActive)
             _uow.Register(DbContext);
 
-        // Executes immediately as a single UPDATE, enlisting in the UoW transaction when one is open.
         return DbSet
             .Where(query)
             .ExecuteUpdateAsync(

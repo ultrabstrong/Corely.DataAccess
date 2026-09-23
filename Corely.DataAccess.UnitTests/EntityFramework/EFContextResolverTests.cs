@@ -9,7 +9,6 @@ namespace Corely.DataAccess.UnitTests.EntityFramework;
 
 public class EFContextResolverTests
 {
-    // Test-only entities and DbContexts
     private class ResolverEntity1
     {
         public int Id { get; set; }
@@ -38,7 +37,7 @@ public class EFContextResolverTests
         public ResolverDbContext2(DbContextOptions<ResolverDbContext2> options)
             : base(options) { }
 
-        public DbSet<ResolverEntity1> Entities => Set<ResolverEntity1>(); // same entity as DbContext1 (for ambiguity)
+        public DbSet<ResolverEntity1> Entities => Set<ResolverEntity1>();
     }
 
     private class ResolverDbContext3 : DbContext

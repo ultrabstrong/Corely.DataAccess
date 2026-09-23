@@ -15,7 +15,7 @@ public class MockRepoTests : RepoTestsBase
     protected override int FillRepoAndReturnId()
     {
         var entityList = Fixture.CreateMany<EntityFixture>(5).ToList();
-        _mockRepo.CreateAsync(entityList); // fire & forget acceptable in tests
+        _mockRepo.CreateAsync(entityList);
         return entityList[2].Id;
     }
 

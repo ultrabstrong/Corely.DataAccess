@@ -50,7 +50,6 @@ internal class EFUoWProvider : DisposeBase, IUnitOfWorkProvider
 
         try
         {
-            // Ensure any newly registered contexts have a transaction if supported
             foreach (var ctx in _contexts)
             {
                 var supportsTx =
@@ -63,7 +62,6 @@ internal class EFUoWProvider : DisposeBase, IUnitOfWorkProvider
                 }
             }
 
-            // Repos now save as they go; just commit/cleanup transactions here
             foreach (var kv in _transactions)
             {
                 if (kv.Value != null)

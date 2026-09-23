@@ -9,10 +9,6 @@ using Microsoft.Extensions.Logging;
 
 namespace Corely.DataAccess.UnitTests;
 
-/// <summary>
-/// MockRepo re-implements EF's SetProperty semantics by hand, so every behaviour is asserted
-/// against both implementations. If the mock drifts from EF, these fail.
-/// </summary>
 public sealed class ExecuteUpdateParityTests : IDisposable
 {
     private static readonly DateTime _seedCreated = new(2020, 1, 1, 0, 0, 0, DateTimeKind.Utc);
@@ -25,7 +21,6 @@ public sealed class ExecuteUpdateParityTests : IDisposable
 
     public ExecuteUpdateParityTests()
     {
-        // Sqlite (not InMemory) - the InMemory provider cannot execute set-based updates.
         _connection = new SqliteConnection("Data Source=:memory:");
         _connection.Open();
 
@@ -156,7 +151,6 @@ public sealed class ExecuteUpdateParityTests : IDisposable
     [Fact]
     public async Task ExecuteUpdate_DoesNotApplyModifiedUtcConvention()
     {
-        // Set-based updates bypass change tracking in EF; the mock must not "helpfully" differ.
         foreach (var repo in BothRepos)
         {
             await repo.ExecuteUpdateAsync(

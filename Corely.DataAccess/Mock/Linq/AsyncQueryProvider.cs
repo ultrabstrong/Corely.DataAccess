@@ -54,10 +54,8 @@ internal sealed class AsyncQueryProvider : IAsyncQueryProvider
         {
             var innerResultType = resultType.GetGenericArguments()[0];
 
-            // Execute synchronously using the inner provider
             var syncResult = _inner.Execute(expression);
 
-            // Wrap in Task.FromResult(innerResultType)
             var taskFromResult = typeof(Task)
                 .GetMethods()
                 .First(m => m.Name == nameof(Task.FromResult) && m.IsGenericMethod)

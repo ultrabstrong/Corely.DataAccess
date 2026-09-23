@@ -87,7 +87,6 @@ public class EFEventDataLoggerTests
 
         public bool DetailedErrorsEnabled => false;
 
-        // Provide a dummy value; not used by our tests
         public WarningsConfiguration WarningsConfiguration => default!;
 
         public void Initialize(IDbContextOptions options) { }
@@ -166,7 +165,6 @@ public class EFEventDataLoggerTests
         using var ctx = CreateContext();
         var ev = CreateDbContextEvent(new EventId(124, "DefaultSkip"), LogLevel.Information, ctx);
 
-        // onlyLogExecutedCommands defaults to true
         EFEventDataLogger.Write(logger, ev);
 
         Assert.Empty(logger.Entries);
@@ -230,7 +228,6 @@ public class EFEventDataLoggerTests
     [Fact]
     public void Write_IsEnabledFalse_ShortCircuits()
     {
-        // Event effective level becomes Debug via override; logger disables Debug
         var logger = new FilterLogger(lvl => lvl != LogLevel.Debug);
         using var ctx = CreateContext();
         var ev = CreateDbContextEvent(new EventId(459, "DisabledDebug"), LogLevel.Information, ctx);
