@@ -26,7 +26,6 @@ public static class ServiceRegistrationExtensions
         services.TryAddScoped(typeof(IReadonlyRepo<>), typeof(EFReadonlyRepoAdapter<>));
         services.TryAddScoped(typeof(IRepo<>), typeof(EFRepoAdapter<>));
 
-        // Concrete registration: EFRepo injects EFUoWProvider; the interface forwards to the same instance.
         services.TryAddScoped<EFUoWProvider>();
         services.TryAddScoped<IUnitOfWorkProvider>(sp => sp.GetRequiredService<EFUoWProvider>());
         return services;

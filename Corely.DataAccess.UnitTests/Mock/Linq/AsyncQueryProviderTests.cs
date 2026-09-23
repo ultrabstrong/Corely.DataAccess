@@ -13,7 +13,6 @@ public class AsyncQueryProviderTests
         var source = GetBaseQueryable(1, 2, 3);
         var asyncQueryable = new AsyncEnumerable<int>(source.Expression);
 
-        // Called explicitly: .NET 10's AsyncEnumerable.ToListAsync is an equally good match.
         var list = await EntityFrameworkQueryableExtensions.ToListAsync(asyncQueryable);
 
         Assert.Equal([1, 2, 3], list);

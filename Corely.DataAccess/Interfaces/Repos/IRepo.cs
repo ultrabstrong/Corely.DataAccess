@@ -11,7 +11,6 @@ public interface IRepo<TEntity> : IReadonlyRepo<TEntity>
 
     Task UpdateAsync(TEntity entity, CancellationToken cancellationToken = default);
 
-    // Bypasses the change tracker: set ModifiedUtc yourself.
     Task<int> ExecuteUpdateAsync(
         Expression<Func<TEntity, bool>> query,
         Action<IUpdateSetters<TEntity>> setProperties,
