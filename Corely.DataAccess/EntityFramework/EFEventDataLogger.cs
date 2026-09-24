@@ -1,4 +1,3 @@
-﻿using System.Data.Common;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.Logging;
 
@@ -22,7 +21,7 @@ public static class EFEventDataLogger
         ArgumentNullException.ThrowIfNull(logger);
         ArgumentNullException.ThrowIfNull(eventData);
 
-        var effectiveLevel = GetEffectiveLevel(eventData.LogLevel, writeInfoLogsAs);
+        var effectiveLevel = eventData.LogLevel.WithInformationWrittenAs(writeInfoLogsAs);
 
         if (!logger.IsEnabled(effectiveLevel))
             return;
@@ -52,27 +51,13 @@ public static class EFEventDataLogger
         }
     }
 
-    private static LogLevel GetEffectiveLevel(LogLevel original, WriteInfoLogsAs? infoOverride)
-    {
-        if (original == LogLevel.Information && infoOverride is { } overrideValue)
-        {
-            return overrideValue switch
-            {
-                WriteInfoLogsAs.Debug => LogLevel.Debug,
-                WriteInfoLogsAs.Trace => LogLevel.Trace,
-                _ => original,
-            };
-        }
-        return original;
-    }
-
     private static void LogCommandExecuted(
         ILogger logger,
         CommandExecutedEventData e,
         LogLevel effectiveLevel
     )
     {
-        var parameters = BuildParameterDictionary(e.Command.Parameters, e.LogParameterValues);
+        var parameters = e.Command.Parameters.ToLoggingDictionary(e.LogParameterValues);
         var contextType = e.Context?.GetType().Name ?? "UnknownContext";
 
         var props = new Dictionary<string, object?>(StringComparer.OrdinalIgnoreCase)
@@ -126,29 +111,5 @@ public static class EFEventDataLogger
             contextType,
             e.ToString() ?? string.Empty
         );
-    }
-
-    private static Dictionary<string, object?> BuildParameterDictionary(
-        DbParameterCollection parameters,
-        bool logValues
-    )
-    {
-        var dict = new Dictionary<string, object?>(StringComparer.OrdinalIgnoreCase);
-
-        for (var i = 0; i < parameters.Count; i++)
-        {
-            if (parameters[i] is DbParameter p)
-            {
-                var name = string.IsNullOrWhiteSpace(p.ParameterName) ? $"p{i}" : p.ParameterName;
-                var value = logValues ? p.Value : "?";
-                dict[name] = value;
-            }
-            else
-            {
-                dict[$"p{i}"] = logValues ? parameters[i] : "?";
-            }
-        }
-
-        return dict;
     }
 }
