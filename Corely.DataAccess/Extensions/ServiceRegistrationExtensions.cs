@@ -15,71 +15,74 @@ namespace Corely.DataAccess.Extensions;
 
 public static class ServiceRegistrationExtensions
 {
-    public static IServiceCollection RegisterEntityFrameworkReposAndUoW(
-        this IServiceCollection services
-    )
+    extension(IServiceCollection services)
     {
-        services.TryAddSingleton(TimeProvider.System);
-        services.TryAddSingleton<IEFContextResolver>(sp => new EFContextResolver(sp));
-        services.TryAddScoped(typeof(EFReadonlyRepo<,>), typeof(EFReadonlyRepo<,>));
-        services.TryAddScoped(typeof(EFRepo<,>), typeof(EFRepo<,>));
-        services.TryAddScoped(typeof(IReadonlyRepo<>), typeof(EFReadonlyRepoAdapter<>));
-        services.TryAddScoped(typeof(IRepo<>), typeof(EFRepoAdapter<>));
-
-        services.TryAddScoped<EFUoWProvider>();
-        services.TryAddScoped<IUnitOfWorkProvider>(sp => sp.GetRequiredService<EFUoWProvider>());
-        return services;
-    }
-
-    public static IServiceCollection RegisterMockReposAndUoW(this IServiceCollection services)
-    {
-        services.TryAddSingleton(TimeProvider.System);
-        services.TryAddScoped(typeof(IRepo<>), typeof(MockRepo<>));
-        services.TryAddScoped(typeof(IReadonlyRepo<>), typeof(MockReadonlyRepo<>));
-        services.TryAddScoped<IUnitOfWorkProvider, MockUoWProvider>();
-        return services;
-    }
-
-    public static void EnsureSchemasForTestingOnly(this IServiceCollection services)
-    {
-        var provider = services.BuildServiceProvider();
-        using var scope = provider.CreateScope();
-
-        var dbContextTypes = services
-            .Where(sd => typeof(DbContext).IsAssignableFrom(sd.ServiceType))
-            .Select(sd => sd.ServiceType)
-            .Distinct()
-            .ToList();
-
-        foreach (var ctxType in dbContextTypes)
+        public IServiceCollection RegisterEntityFrameworkReposAndUoW()
         {
-            var ctx = (DbContext)scope.ServiceProvider.GetRequiredService(ctxType);
-            try
+            services.TryAddSingleton(TimeProvider.System);
+            services.TryAddSingleton<IEFContextResolver>(sp => new EFContextResolver(sp));
+            services.TryAddScoped(typeof(EFReadonlyRepo<,>), typeof(EFReadonlyRepo<,>));
+            services.TryAddScoped(typeof(EFRepo<,>), typeof(EFRepo<,>));
+            services.TryAddScoped(typeof(IReadonlyRepo<>), typeof(EFReadonlyRepoAdapter<>));
+            services.TryAddScoped(typeof(IRepo<>), typeof(EFRepoAdapter<>));
+
+            services.TryAddScoped<EFUoWProvider>();
+            services.TryAddScoped<IUnitOfWorkProvider>(sp =>
+                sp.GetRequiredService<EFUoWProvider>()
+            );
+            return services;
+        }
+
+        public IServiceCollection RegisterMockReposAndUoW()
+        {
+            services.TryAddSingleton(TimeProvider.System);
+            services.TryAddScoped(typeof(IRepo<>), typeof(MockRepo<>));
+            services.TryAddScoped(typeof(IReadonlyRepo<>), typeof(MockReadonlyRepo<>));
+            services.TryAddScoped<IUnitOfWorkProvider, MockUoWProvider>();
+            return services;
+        }
+
+        public void EnsureSchemasForTestingOnly()
+        {
+            var provider = services.BuildServiceProvider();
+            using var scope = provider.CreateScope();
+
+            var dbContextTypes = services
+                .Where(sd => typeof(DbContext).IsAssignableFrom(sd.ServiceType))
+                .Select(sd => sd.ServiceType)
+                .Distinct()
+                .ToList();
+
+            foreach (var ctxType in dbContextTypes)
             {
-                var creator = ctx.Database.GetService<IDatabaseCreator>();
-                if (creator is IRelationalDatabaseCreator relational)
+                var ctx = (DbContext)scope.ServiceProvider.GetRequiredService(ctxType);
+                try
                 {
-                    if (!relational.Exists())
+                    var creator = ctx.Database.GetService<IDatabaseCreator>();
+                    if (creator is IRelationalDatabaseCreator relational)
                     {
-                        ctx.Database.EnsureCreated();
+                        if (!relational.Exists())
+                        {
+                            ctx.Database.EnsureCreated();
+                        }
+                        else
+                        {
+                            try
+                            {
+                                relational.CreateTables();
+                            }
+                            catch { }
+                        }
                     }
                     else
                     {
-                        try
-                        {
-                            relational.CreateTables();
-                        }
-                        catch { }
+                        ctx.Database.EnsureCreated();
                     }
                 }
-                else
+                catch
                 {
                     ctx.Database.EnsureCreated();
                 }
-            }
-            catch
-            {
-                ctx.Database.EnsureCreated();
             }
         }
     }

@@ -1,7 +1,9 @@
-﻿namespace Corely.DataAccess.Mock.Linq;
+namespace Corely.DataAccess.Mock.Linq;
 
 internal static class AsyncQueryableExtensions
 {
-    public static IQueryable<T> AsAsyncQueryable<T>(this IEnumerable<T> source) =>
-        new AsyncEnumerable<T>(source);
+    extension<T>(IEnumerable<T> source)
+    {
+        public IQueryable<T> AsAsyncQueryable() => new AsyncEnumerable<T>(source);
+    }
 }

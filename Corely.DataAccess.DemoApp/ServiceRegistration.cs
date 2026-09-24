@@ -1,4 +1,4 @@
-﻿using Corely.DataAccess.Demo;
+using Corely.DataAccess.Demo;
 using Corely.DataAccess.Demo.Configurations;
 using Corely.DataAccess.EntityFramework.Configurations;
 using Corely.DataAccess.Extensions;
@@ -18,12 +18,12 @@ internal static class ServiceRegistration
         services.AddScoped<DemoService>();
         services.AddScoped<DemoService2>();
 
-        services.RegisterEFServices();
+        RegisterEFServices(services);
 
         return services.BuildServiceProvider();
     }
 
-    private static void RegisterEFServices(this IServiceCollection services)
+    private static void RegisterEFServices(IServiceCollection services)
     {
         var context1Config = new InMemoryDemoConfiguration("DemoDbContext1");
 
