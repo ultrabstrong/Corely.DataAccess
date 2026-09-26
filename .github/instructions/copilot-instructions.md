@@ -28,7 +28,7 @@ Purpose: Generate code that fits this repository’s patterns and CI expectation
 
 ## C# Coding Standards (concise)
 
-- Clarity first: small types, expressive names, pure/narrow functions; minimize comments—only for intent, invariants, or non-obvious behavior.
+- Clarity first: small types, expressive names, pure/narrow functions; minimize comments, keeping them only for intent, invariants, or non-obvious behavior.
 - Constructors:
   - Prefer primary constructors when supported; otherwise standard constructors with readonly fields/properties.
   - Validate public inputs early (ArgumentNullException.ThrowIfNull(arg)).

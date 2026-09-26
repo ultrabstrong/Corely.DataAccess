@@ -8,18 +8,18 @@ It gets asked every time EF ships a major version and something here breaks. The
 ## Short version
 
 Microsoft recommends exactly this pattern for applications that want to test without a database.
-It is not a workaround or a legacy habit — it is the documented approach, and the maintenance cost
+It is not a workaround or a legacy habit. It is the documented approach, and the maintenance cost
 is documented alongside it.
 
 > If you've decided to use a test double, we recommend implementing the repository pattern, which
 > allows you to stub or mock out your data access layer above EF Core, rather than using a fake EF
 > Core provider (Sqlite/in-memory) or by mocking `DbSet`.
 >
-> — [Choosing a testing strategy](https://learn.microsoft.com/ef/core/testing/choosing-a-testing-strategy#summary)
+> Source: [Choosing a testing strategy](https://learn.microsoft.com/ef/core/testing/choosing-a-testing-strategy#summary)
 
 ## The three objections, and the answers
 
-### "It's a leaky abstraction — it exposes EF types"
+### "It's a leaky abstraction: it exposes EF types"
 
 Mostly it does not. `Expression<Func<T, bool>>`, `IQueryable<T>` and
 `Func<IQueryable<T>, IOrderedQueryable<T>>` are `System.Linq`, not EF. Any LINQ-enabled ORM
@@ -27,7 +27,7 @@ satisfies those signatures.
 
 The genuinely EF-typed surface has historically been a single parameter: the `ExecuteUpdateAsync`
 setters. That is worth keeping an eye on and worth wrapping, but it is one parameter on one method
-— not evidence that the design is wrong.
+and not evidence that the design is wrong.
 
 ### "Couldn't the EF in-memory provider replace MockRepo?"
 
@@ -49,7 +49,7 @@ Corely.IAM uses for token revocation and password-recovery expiry. Those tests c
 
 No. `DbContext` and `DbSet<T>` are classes with no interface suitable for injection or
 substitution. Any application that wants an injectable, substitutable data layer has to define that
-interface itself. `IRepo<T>` is that interface — it is the thing you would write anyway, not an
+interface itself. `IRepo<T>` is that interface: it is the thing you would write anyway, not an
 extra layer on top of one you already had.
 
 ## What Microsoft's own comparison shows
@@ -74,7 +74,7 @@ For this codebase that cost is:
 
 - Roughly 1,900 lines to maintain, about 550 of which is `MockRepo`.
 - A hand-written re-implementation of EF semantics that can drift from real EF behavior. The
-  integration tier exists to cover what the mock cannot model — translation, constraints, provider
+  integration tier exists to cover what the mock cannot model: translation, constraints, provider
   differences.
 - Breakage on EF major versions when EF changes a type this interface exposes.
 
@@ -91,11 +91,11 @@ Behavior that depends on real SQL translation belongs in the integration tier, n
 
 ## When to revisit this decision
 
-Reopen the question if any of these become true — not merely because an upgrade was annoying:
+Reopen the question if any of these become true, and not merely because an upgrade was annoying:
 
 - The unit suite stops being meaningfully faster than the integration suite. Speed is the main
   thing being bought; if it is gone, so is the justification.
-- `MockRepo` drift starts producing false passes — unit tests green while integration tests catch
+- `MockRepo` drift starts producing false passes: unit tests green while integration tests catch
   the same logic failing.
 - EF exposes a supported abstraction over `DbContext`/`DbSet` suitable for substitution, removing
   the reason to define one here.

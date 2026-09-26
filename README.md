@@ -23,4 +23,4 @@ Details about using this library can be found in the [documentation](https://git
 We welcome contributions! Please read our [contributing guidelines](https://github.com/ultrabstrong/Corely.DataAccess/blob/master/CONTRIBUTING.md) to get started.
 
 ## License
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.

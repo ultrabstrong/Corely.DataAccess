@@ -10,7 +10,7 @@ Use it to keep your DbContexts concise and consistent across projects.
 ## What it does
 
 1) Provider configuration
-- If DbContextOptions weren’t preconfigured, OnConfiguring calls EfConfiguration.Configure(optionsBuilder).
+- If DbContextOptions werenâ€™t preconfigured, OnConfiguring calls EfConfiguration.Configure(optionsBuilder).
 - This defers all provider selection (SQLite, InMemory, MySQL, Postgres) to your IEFConfiguration implementation.
 
 2) Entity configuration discovery
@@ -20,7 +20,7 @@ Use it to keep your DbContexts concise and consistent across projects.
 
 Notes:
 - EF caches the model per context type; the scan runs during model build, not on every query.
-- By default, only the current context’s assembly is scanned.
+- By default, only the current contextâ€™s assembly is scanned.
 
 ## Basic usage
 
@@ -38,7 +38,7 @@ public sealed class AppDbContext : DbContextBase
 }
 ```
 
-That’s it—no need to repeat OnConfiguring/OnModelCreating in each context. Place your EntityConfigurationBase<> classes in the same assembly as the context so they’re discovered automatically.
+Thatâ€™s it. There is no need to repeat OnConfiguring/OnModelCreating in each context. Place your EntityConfigurationBase<> classes in the same assembly as the context so theyâ€™re discovered automatically.
 
 ## Protected hooks
 
@@ -59,7 +59,7 @@ Example: include another assembly
 ```csharp
 protected override IEnumerable<Assembly> GetConfigurationAssemblies()
 {
-    yield return GetType().Assembly;              // this context’s assembly
+    yield return GetType().Assembly;              // this contextâ€™s assembly
     yield return typeof(SharedEntityConfiguration).Assembly; // another assembly
 }
 ```
@@ -71,7 +71,7 @@ protected virtual void ConfigureModel(ModelBuilder modelBuilder)
 ```
 Default: no-op.
 When to override:
-- Add per-context conventions, indices, query filters, owned types, or other model adjustments that aren’t in a specific EntityConfigurationBase<>.
+- Add per-context conventions, indices, query filters, owned types, or other model adjustments that arenâ€™t in a specific EntityConfigurationBase<>.
 
 Example: global query filter
 ```csharp
@@ -84,8 +84,8 @@ protected override void ConfigureModel(ModelBuilder modelBuilder)
 
 ## Requirements and conventions
 - Discovered configuration classes must derive directly from EntityConfigurationBase<>, and have a constructor that accepts an IEFDbTypes.
-- If you don’t use EntityConfigurationBase<>, you can still override ConfigureModel to apply configuration manually.
-- IEFConfiguration must be registered in DI and provided to the context; DbContextBase will call Configure only if options aren’t already configured.
+- If you donâ€™t use EntityConfigurationBase<>, you can still override ConfigureModel to apply configuration manually.
+- IEFConfiguration must be registered in DI and provided to the context; DbContextBase will call Configure only if options arenâ€™t already configured.
 
 ## Demo references
 - DemoDbContext and DemoDbContext2 in the demo project inherit DbContextBase.

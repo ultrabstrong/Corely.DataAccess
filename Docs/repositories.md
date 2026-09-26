@@ -115,7 +115,7 @@ await repo.ExecuteUpdateAsync(
         .SetProperty(e => e.Attempts, e => e.Attempts + 1)
         .SetProperty(e => e.ModifiedUtc, utcNow));
 ```
-This bypasses the change tracker, so IHasModifiedUtc is **not** applied automatically - set it explicitly when needed. Rows are updated in place, so no entity is loaded or returned.
+This bypasses the change tracker, so IHasModifiedUtc is **not** applied automatically; set it explicitly when needed. Rows are updated in place, so no entity is loaded or returned.
 
 IUpdateSetters is declared by this library rather than surfacing EF's own setter type. EF has revised that type once already, and passing it through IRepo would make every such revision a breaking change for consumers.
 
