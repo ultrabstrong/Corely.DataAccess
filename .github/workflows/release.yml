@@ -6,14 +6,10 @@ name: Release
 #
 # The policy is bound to this file name (release.yml) - renaming it breaks publishing until the
 # policy on nuget.org is updated to match.
-#
-#   git tag v2.3.0 && git push origin v2.3.0
-#
 on:
   push:
     tags:
-      - "v*"
-  workflow_dispatch:
+      - "Corely.DataAccess-v*"
 
 jobs:
   release:
@@ -25,16 +21,14 @@ jobs:
 
     steps:
       - uses: actions/checkout@v7
-        with:
-          fetch-depth: 0 # version check compares against the last release tag
 
       - uses: actions/setup-dotnet@v6
         with:
           dotnet-version: 10.0.x
 
-      # Publishing an unbumped package skips it as a duplicate and still reports success.
-      - name: Package versions
-        run: STRICT=1 bash scripts/check-package-versions.sh
+      - name: Package
+        id: package
+        run: bash scripts/release-package.sh "$GITHUB_REF_NAME"
 
       - name: Restore
         run: dotnet restore Corely.DataAccess.sln
@@ -45,15 +39,12 @@ jobs:
       - name: Test
         run: dotnet test --solution Corely.DataAccess.sln --configuration Release --no-build
 
-      # Version comes from the csproj, matching how these packages have always been versioned.
-      # The tag is the trigger, not the source of truth.
       - name: Pack
         run: >
-          dotnet pack Corely.DataAccess/Corely.DataAccess.csproj
+          dotnet pack ${{ steps.package.outputs.csproj }}
           --configuration Release
           --no-build
-          -p:IncludeSymbols=true
-          -p:SymbolPackageFormat=snupkg
+          ${{ steps.package.outputs.pack_args }}
           --output ./artifacts
 
       - name: List packages
@@ -71,7 +62,6 @@ jobs:
           dotnet nuget push "./artifacts/*.nupkg"
           --api-key ${{ steps.login.outputs.NUGET_API_KEY }}
           --source https://api.nuget.org/v3/index.json
-          --skip-duplicate
 
       - uses: actions/upload-artifact@v7
         with:

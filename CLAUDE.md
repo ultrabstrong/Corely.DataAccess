@@ -36,6 +36,16 @@ dotnet test --solution Corely.DataAccess.sln
 dotnet test --project Corely.DataAccess.UnitTests
 ```
 
+## Releasing
+
+Bump `<Version>` in the library csproj, then tag `<PackageId>-v<Version>`:
+`git tag Corely.DataAccess-v3.1.1 && git push origin Corely.DataAccess-v3.1.1`. The tag triggers
+`release.yml`, which fails unless the tag's version equals the csproj's, then builds, tests, packs
+and pushes to NuGet via OIDC. A version already on nuget.org fails the push rather than being
+skipped. Tags are pushed only with the owner's say-so. `ci.yml` runs build and test on every push
+and pull request, and `scripts/check-package-versions.sh` reports a change since the last tag
+without a version bump. The old `v*` tags are history and stay.
+
 ## Conventions
 
 Line endings are LF, enforced by `.gitattributes`. Formatting is CSharpier, enforced on build; the
