@@ -118,7 +118,7 @@ await repo.ExecuteUpdateAsync(
         .SetProperty(e => e.Attempts, e => e.Attempts + 1)
         .SetProperty(e => e.ModifiedUtc, utcNow));
 ```
-This bypasses the change tracker, so IHasModifiedUtc is **not** applied automatically; set it explicitly when needed. Rows are updated in place, so no entity is loaded or returned.
+This bypasses the change tracker, so IHasModifiedUtc is **not** applied automatically; set it explicitly when needed. Rows are updated in place, so no entity is loaded or returned. Inside an active unit of work the update is not deferred: it runs at once within the unit of work's transaction, so RollbackAsync undoes it and CommitAsync keeps it. The EF in-memory provider cannot run set-based updates; test them against SQLite in memory or a mock repo.
 
 IUpdateSetters is declared by this library rather than surfacing EF's own setter type. EF has revised that type once already, and passing it through IRepo would make every such revision a breaking change for consumers.
 
@@ -127,7 +127,7 @@ ExecuteDeleteAsync removes every matching row in a single database round-trip, r
 ```csharp
 var purged = await repo.ExecuteDeleteAsync(t => t.ExpiresUtc < utcNow);
 ```
-This runs straight against the database and bypasses the change tracker. Entities already loaded into the context stay tracked after their rows are gone, so don't save them again afterwards. Related rows follow the database's cascade rules, not EF's client side cascade, because nothing is loaded for EF to cascade over. Inside an active unit of work the delete is not deferred: it runs at once within the unit of work's transaction, so RollbackAsync restores the rows and CommitAsync keeps them deleted.
+This runs straight against the database and bypasses the change tracker. Entities already loaded into the context stay tracked after their rows are gone, so don't save them again afterwards. Related rows follow the database's cascade rules, not EF's client side cascade, because nothing is loaded for EF to cascade over. Inside an active unit of work the delete is not deferred: it runs at once within the unit of work's transaction, so RollbackAsync restores the rows and CommitAsync keeps them deleted. As with updates, the EF in-memory provider cannot run set-based deletes; test them against SQLite in memory or a mock repo.
 
 ## Unit of Work Integration
 See [Unit of Work](unit-of-work.md). In short:
