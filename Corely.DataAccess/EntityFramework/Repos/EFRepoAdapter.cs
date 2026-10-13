@@ -50,6 +50,11 @@ internal sealed class EFRepoAdapter<TEntity> : IRepo<TEntity>
     public Task DeleteAsync(TEntity entity, CancellationToken cancellationToken = default) =>
         Repo.DeleteAsync(entity, cancellationToken);
 
+    public Task<int> ExecuteDeleteAsync(
+        Expression<Func<TEntity, bool>> query,
+        CancellationToken cancellationToken = default
+    ) => Repo.ExecuteDeleteAsync(query, cancellationToken);
+
     public Task<TEntity?> GetAsync(
         Expression<Func<TEntity, bool>> query,
         Func<IQueryable<TEntity>, IOrderedQueryable<TEntity>>? orderBy = null,

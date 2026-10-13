@@ -18,4 +18,9 @@ public interface IRepo<TEntity> : IReadonlyRepo<TEntity>
     );
 
     Task DeleteAsync(TEntity entity, CancellationToken cancellationToken = default);
+
+    Task<int> ExecuteDeleteAsync(
+        Expression<Func<TEntity, bool>> query,
+        CancellationToken cancellationToken = default
+    );
 }

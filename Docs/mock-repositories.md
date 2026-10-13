@@ -22,6 +22,7 @@ Avoid for: scenarios relying on EF Core query translation, relational constraint
 - `UpdateAsync` sets `ModifiedUtc` when implementing `IHasModifiedUtc` and now prefers key-based replacement when entity implements `IHasIdPk<TKey>`; falls back to reference equality if no key.
 - `DeleteAsync` removes by key when available; otherwise by reference.
 - `ExecuteUpdateAsync` invokes the setters against each matching entity in turn. Like EF it bypasses change tracking, so `IHasModifiedUtc` is not applied automatically.
+- `ExecuteDeleteAsync` removes every matching entity and returns the count. The mock has no relations, so nothing cascades.
 
 ## Basic Usage
 ```csharp
@@ -67,6 +68,7 @@ public class MyServiceTests
 | Concurrency tokens / store gen | Ignored | Enforced / generated | 
 | Query performance | In-memory list | Provider dependent | 
 | Set-based update SQL | Setters applied per entity | Single UPDATE statement | 
+| Set-based delete SQL | Matches removed per entity, no cascade | Single DELETE statement, database cascade rules | 
 
 ## Summary
 Mock repos trade fidelity for speed and determinism. Use them to test business logic, not EF Core translation or relational behavior. Promote tests needing real provider semantics to an integration test layer.

@@ -220,6 +220,24 @@ public class MockRepo<TEntity> : IRepo<TEntity>
         return Task.CompletedTask;
     }
 
+    public virtual Task<int> ExecuteDeleteAsync(
+        Expression<Func<TEntity, bool>> query,
+        CancellationToken cancellationToken = default
+    )
+    {
+        ArgumentNullException.ThrowIfNull(query);
+
+        var predicate = query.Compile();
+
+        var matches = Entities.Where(predicate).ToList();
+        foreach (var entity in matches)
+        {
+            Entities.Remove(entity);
+        }
+
+        return Task.FromResult(matches.Count);
+    }
+
     public virtual Task<TResult> EvaluateAsync<TResult>(
         Func<IQueryable<TEntity>, CancellationToken, Task<TResult>> run,
         CancellationToken cancellationToken = default

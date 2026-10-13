@@ -127,4 +127,17 @@ internal sealed class EFRepo<TContext, TEntity> : EFReadonlyRepo<TContext, TEnti
 
         await DbContext.SaveChangesAsync(cancellationToken);
     }
+
+    public Task<int> ExecuteDeleteAsync(
+        Expression<Func<TEntity, bool>> query,
+        CancellationToken cancellationToken = default
+    )
+    {
+        ArgumentNullException.ThrowIfNull(query);
+
+        if (_uow.IsActive)
+            _uow.Register(DbContext);
+
+        return DbSet.Where(query).ExecuteDeleteAsync(cancellationToken);
+    }
 }

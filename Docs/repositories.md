@@ -28,6 +28,9 @@ public interface IRepo<TEntity> : IReadonlyRepo<TEntity>
 
     // Set-based update: one statement for every matching row
     Task<int> ExecuteUpdateAsync(Expression<Func<TEntity,bool>> query, Action<IUpdateSetters<TEntity>> setProperties, CancellationToken ct = default);
+
+    // Set-based delete: one statement for every matching row
+    Task<int> ExecuteDeleteAsync(Expression<Func<TEntity,bool>> query, CancellationToken ct = default);
 }
 ```
 
@@ -118,6 +121,13 @@ await repo.ExecuteUpdateAsync(
 This bypasses the change tracker, so IHasModifiedUtc is **not** applied automatically; set it explicitly when needed. Rows are updated in place, so no entity is loaded or returned.
 
 IUpdateSetters is declared by this library rather than surfacing EF's own setter type. EF has revised that type once already, and passing it through IRepo would make every such revision a breaking change for consumers.
+
+## Set-Based Deletes
+ExecuteDeleteAsync removes every matching row in a single database round-trip, returning the number of rows deleted:
+```csharp
+var purged = await repo.ExecuteDeleteAsync(t => t.ExpiresUtc < utcNow);
+```
+This runs straight against the database and bypasses the change tracker. Entities already loaded into the context stay tracked after their rows are gone, so don't save them again afterwards. Related rows follow the database's cascade rules, not EF's client side cascade, because nothing is loaded for EF to cascade over.
 
 ## Unit of Work Integration
 See [Unit of Work](unit-of-work.md). In short:
