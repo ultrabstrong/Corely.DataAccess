@@ -106,6 +106,12 @@ This covers conversions and derived readings, not every private method: a helper
 structures the code it sits in stays where it is, and so does a private step inside an extension
 class.
 
+### Plans
+
+Store implementation plans in `Plans/` at the repository root. When the work ships, its plan moves
+to `Plans/Completed/` in the same push, with a status line saying what was released and an "As
+built" section for anything that turned out differently. Never leave it for a later push.
+
 ## Documentation
 
 `Docs/` describes **how the current version works**. Nothing else.
