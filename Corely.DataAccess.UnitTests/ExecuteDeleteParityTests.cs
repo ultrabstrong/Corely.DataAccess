@@ -15,6 +15,7 @@ public sealed class ExecuteDeleteParityTests : IDisposable
 
     private readonly SqliteConnection _connection;
     private readonly DbContextFixture _dbContext;
+    private readonly EFUoWProvider _uow = new();
     private readonly EFRepo<DbContextFixture, EntityFixture> _efRepo;
     private readonly MockRepo<EntityFixture> _mockRepo = new();
 
@@ -31,7 +32,7 @@ public sealed class ExecuteDeleteParityTests : IDisposable
         _efRepo = new EFRepo<DbContextFixture, EntityFixture>(
             Moq.Mock.Of<ILogger<EFRepo<DbContextFixture, EntityFixture>>>(),
             _dbContext,
-            new EFUoWProvider(),
+            _uow,
             TimeProvider.System
         );
 
@@ -101,8 +102,63 @@ public sealed class ExecuteDeleteParityTests : IDisposable
         }
     }
 
+    [Fact]
+    public async Task ExecuteDelete_IsUndone_WhenUnitOfWorkRollsBack()
+    {
+        await _uow.BeginAsync();
+
+        var affected = await _efRepo.ExecuteDeleteAsync(e => e.Id > 2);
+        await _uow.RollbackAsync();
+
+        Assert.Equal(2, affected);
+        Assert.Equal([1, 2, 3, 4], Read(_efRepo).Select(e => e.Id));
+    }
+
+    [Fact]
+    public async Task ExecuteDelete_IsKept_WhenUnitOfWorkCommits()
+    {
+        await _uow.BeginAsync();
+
+        await _efRepo.ExecuteDeleteAsync(e => e.Id > 2);
+        await _uow.CommitAsync();
+
+        Assert.Equal([1, 2], Read(_efRepo).Select(e => e.Id));
+    }
+
+    [Fact]
+    public async Task ExecuteDelete_LeavesLoadedEntitiesTracked()
+    {
+        var loaded = _dbContext.Set<EntityFixture>().Single(e => e.Id == 1);
+
+        await _efRepo.ExecuteDeleteAsync(e => e.Id == 1);
+
+        Assert.Equal(EntityState.Unchanged, _dbContext.Entry(loaded).State);
+        Assert.DoesNotContain(1, Read(_efRepo).Select(e => e.Id));
+    }
+
+    [Fact]
+    public async Task ExecuteDelete_FollowsDatabaseForeignKeyRules_NotClientSideCascade()
+    {
+        var principal = new NavigationPropertyFixture { Id = 10, CreatedUtc = _seedCreated };
+        _dbContext.Add(principal);
+        _dbContext.Set<EntityFixture>().Single(e => e.Id == 1).NavigationProperty = principal;
+        _dbContext.SaveChanges();
+
+        var principalRepo = new EFRepo<DbContextFixture, NavigationPropertyFixture>(
+            Moq.Mock.Of<ILogger<EFRepo<DbContextFixture, NavigationPropertyFixture>>>(),
+            _dbContext,
+            _uow,
+            TimeProvider.System
+        );
+
+        await Assert.ThrowsAsync<SqliteException>(() =>
+            principalRepo.ExecuteDeleteAsync(n => n.Id == 10)
+        );
+    }
+
     public void Dispose()
     {
+        _uow.Dispose();
         _dbContext.Dispose();
         _connection.Dispose();
     }

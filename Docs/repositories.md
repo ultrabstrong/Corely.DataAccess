@@ -127,7 +127,7 @@ ExecuteDeleteAsync removes every matching row in a single database round-trip, r
 ```csharp
 var purged = await repo.ExecuteDeleteAsync(t => t.ExpiresUtc < utcNow);
 ```
-This runs straight against the database and bypasses the change tracker. Entities already loaded into the context stay tracked after their rows are gone, so don't save them again afterwards. Related rows follow the database's cascade rules, not EF's client side cascade, because nothing is loaded for EF to cascade over.
+This runs straight against the database and bypasses the change tracker. Entities already loaded into the context stay tracked after their rows are gone, so don't save them again afterwards. Related rows follow the database's cascade rules, not EF's client side cascade, because nothing is loaded for EF to cascade over. Inside an active unit of work the delete is not deferred: it runs at once within the unit of work's transaction, so RollbackAsync restores the rows and CommitAsync keeps them deleted.
 
 ## Unit of Work Integration
 See [Unit of Work](unit-of-work.md). In short:
