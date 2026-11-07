@@ -7,7 +7,7 @@ What you get:
 - Provider-agnostic EF configuration abstraction (IEFConfiguration + base classes)
 - Entity configuration helpers (EntityConfigurationBase + column helpers)
 - Generic repositories (readonly + CRUD) with adapters that auto-map to your DbContexts
-- Lightweight Unit of Work provider (deferred SaveChanges + transactions when supported)
+- Lightweight Unit of Work provider (a transaction around a set of writes, where the provider supports one)
 - Mock repositories and UoW for fast unit tests
 - Demo projects showing end-to-end registration and usage
 
@@ -44,7 +44,8 @@ await uow.CommitAsync();
 
 ## Key behaviors
 - For EF, repositories and the unit of work automatically resolve and use the appropriate DbContext for each entity at runtime.
-- While a unit of work is active, repository changes are deferred and saved together; on relational providers they are committed atomically.
+- Every write saves at once. While a unit of work is active the writes run inside its transaction, so on relational providers they are committed or rolled back together.
+- One DI scope is one unit of work: a read can return what the scope already loaded. For fresh data, use a new scope (see [Repositories](repositories.md#scopes-and-fresh-reads)).
 - Mock repositories/UoW can be swapped in for fast, provider‑free unit tests.
 
 ## Documentation

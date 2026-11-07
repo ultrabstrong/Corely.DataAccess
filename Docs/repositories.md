@@ -50,7 +50,18 @@ services.RegisterMockReposAndUoW();
 
 ## Behavior
 - For EF, repositories automatically resolve and use the appropriate DbContext for each entity at runtime. If none or multiple contexts match, an error is thrown.
-- All write operations participate in an active Unit of Work when one is begun; otherwise changes are saved immediately.
+- All write operations save immediately. While a Unit of Work is active they run inside its transaction, which CommitAsync commits and RollbackAsync rolls back.
+
+## Scopes and Fresh Reads
+One DI scope is one unit of work. Repositories share the scope's DbContext, and EF remembers every row that context has loaded: a later read of the same row in the same scope returns the remembered instance, not what the database holds now. This is what lets you read entities, change them across several calls and save them, so it is by design and the library does not refresh it.
+
+For data as the database holds it now, read it in a new scope. In a request based host (MVC, APIs, Functions, a hosted service per message) every request already gets one. In Blazor Server a scope lives as long as the circuit, or as long as the component with `OwningComponentBase`, so create a scope per operation instead:
+```csharp
+await using var scope = scopeFactory.CreateAsyncScope();
+var jobs = scope.ServiceProvider.GetRequiredService<IReadonlyRepo<JobEntity>>();
+_job = await jobs.GetAsync(j => j.Id == jobId);
+```
+Don't work around a long lived scope with `AsNoTracking()` at the call site: it fixes one read and leaves every other read in that scope stale.
 
 ## Query Customization
 All repository methods support:
@@ -99,8 +110,8 @@ var page = await repo.QueryAsync(q =>
 These run server-side when using EF-backed repos; mocks execute over in-memory collections.
 
 ## Create/Update/Delete Semantics
-- CreateAsync: single or batch; inside an active UoW, changes are deferred until CommitAsync (unless using in-Memory db).
-- UpdateAsync: updates tracked entity by key; sets ModifiedUtc when IHasModifiedUtc.
+- CreateAsync: single or batch; saved at once (inside the unit of work's transaction when one is active), so database generated keys are set when it returns.
+- UpdateAsync: if the context already tracks an entity with the same key, copies the given values onto it and saves only what changed; otherwise attaches the given entity and writes every column. Sets ModifiedUtc when IHasModifiedUtc.
 - DeleteAsync: removes by reference/key.
 
 ## Set-Based Updates
@@ -118,7 +129,7 @@ await repo.ExecuteUpdateAsync(
         .SetProperty(e => e.Attempts, e => e.Attempts + 1)
         .SetProperty(e => e.ModifiedUtc, utcNow));
 ```
-This bypasses the change tracker, so IHasModifiedUtc is **not** applied automatically; set it explicitly when needed. Rows are updated in place, so no entity is loaded or returned. Inside an active unit of work the update is not deferred: it runs at once within the unit of work's transaction, so RollbackAsync undoes it and CommitAsync keeps it. The EF in-memory provider cannot run set-based updates; test them against SQLite in memory or a mock repo.
+This bypasses the change tracker, so IHasModifiedUtc is **not** applied automatically; set it explicitly when needed. Rows are updated in place, so no entity is loaded or returned. Inside an active unit of work it runs at once within the unit of work's transaction, like every other write, so RollbackAsync undoes it and CommitAsync keeps it. The EF in-memory provider cannot run set-based updates; test them against SQLite in memory or a mock repo.
 
 IUpdateSetters is declared by this library rather than surfacing EF's own setter type. EF has revised that type once already, and passing it through IRepo would make every such revision a breaking change for consumers.
 
@@ -127,12 +138,12 @@ ExecuteDeleteAsync removes every matching row in a single database round-trip, r
 ```csharp
 var purged = await repo.ExecuteDeleteAsync(t => t.ExpiresUtc < utcNow);
 ```
-This runs straight against the database and bypasses the change tracker. Entities already loaded into the context stay tracked after their rows are gone, so don't save them again afterwards. Related rows follow the database's cascade rules, not EF's client side cascade, because nothing is loaded for EF to cascade over. Inside an active unit of work the delete is not deferred: it runs at once within the unit of work's transaction, so RollbackAsync restores the rows and CommitAsync keeps them deleted. As with updates, the EF in-memory provider cannot run set-based deletes; test them against SQLite in memory or a mock repo.
+This runs straight against the database and bypasses the change tracker. Entities already loaded into the context stay tracked after their rows are gone, so don't save them again afterwards. Related rows follow the database's cascade rules, not EF's client side cascade, because nothing is loaded for EF to cascade over. Inside an active unit of work it runs at once within the unit of work's transaction, like every other write, so RollbackAsync restores the rows and CommitAsync keeps them deleted. As with updates, the EF in-memory provider cannot run set-based deletes; test them against SQLite in memory or a mock repo.
 
 ## Unit of Work Integration
 See [Unit of Work](unit-of-work.md). In short:
-- BeginAsync activates the scope; repositories defer SaveChanges while active.
-- CommitAsync persists changes for all enlisted contexts and commits transactions where supported.
+- BeginAsync starts the unit of work; each write after it saves at once inside a transaction on its context.
+- CommitAsync commits the transactions of all enlisted contexts.
 - RollbackAsync rolls back transactions where present and clears ChangeTrackers.
 
 ## When to Subclass
